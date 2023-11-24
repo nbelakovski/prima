@@ -1,0 +1,12 @@
+option('prima_heap_arrays', type : 'boolean', value : true, description : '''
+Set additional Fortran compiler flags
+1. We require the compilers to allocate arrays on the heap instead of the stack, which is
+slower (does not matter for DFO applications) but can avoid memory errors on large problems.
+2. We require the compilers to compile the solvers so that they can be called recursively.
+See https://fortran-lang.discourse.group/t/frecursive-assume-recursion-and-recursion-thread-safety
+'''
+)
+
+option('prima_enable_examples', type: 'boolean', value: false, description: 'build examples by default')
+option('prima_enable_testing', type: 'boolean', value: false, description: 'build tests')
+option('prima_enable_c', type: 'boolean', value: true, description: 'C binding')
