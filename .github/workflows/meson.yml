@@ -139,7 +139,7 @@ jobs:
         run: |
           meson --version
 
-          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.cflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=install build
+          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.cflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install build
           meson configure build  # This merely displays config info, similar to cmake -LAH
           meson compile --verbose -C build install
           meson compile --verbose -C build tests
@@ -187,6 +187,11 @@ jobs:
 
       - name: Miscellaneous setup
         run: bash .github/scripts/misc_setup
+
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - run: pip install meson
 
       - name: Install AOCC
         if: ${{ matrix.toolchain.compiler == 'aflang' }}
