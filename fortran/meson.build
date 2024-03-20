@@ -57,13 +57,13 @@ prima_f_sources = [
   'uobyqa/uobyqa.f90',
 ]
 
-def_file = []
+def_file = ''
 if build_machine.system() == 'windows' and get_option('default_library') == 'shared'
   if fortran_compiler.get_id() == 'gcc'
-    def_file = ['primaf-GNU.def']
+    def_file = 'primaf-GNU.def'
   else
     message('Assuming Intel symbol mangling')
-    def_file += ['primaf-Intel.def']
+    def_file = 'primaf-Intel.def'
   endif
 endif
 
