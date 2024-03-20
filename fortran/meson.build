@@ -57,6 +57,16 @@ prima_f_sources = [
   'uobyqa/uobyqa.f90',
 ]
 
+def_file = []
+if build_machine.system() == 'windows' and get_option('default_library') == 'shared'
+  if fortran_compiler.get_id() == 'gcc'
+    def_file = ['primaf-GNU.def']
+  else
+    message('Assuming Intel symbol mangling')
+    def_file += ['primaf-Intel.def']
+  endif
+endif
+
 primaf = library('primaf',
   prima_f_sources,
   fortran_args : [
@@ -64,6 +74,7 @@ primaf = library('primaf',
     '-DPRIMA_INTEGER_KIND=0',
   ],
   pic : true,
+  vs_module_defs: def_file,
 )
 
 subdir('examples')

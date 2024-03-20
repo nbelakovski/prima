@@ -9,18 +9,15 @@ sources = ['cintrf.f90',
     'prima.c'
 ]
 
-# Export symbols on Windows. See more comments in fortran/CMakeLists.txt.
-if build_machine.system() == 'windows' and get_option('default_library') == 'shared'
-    sources += ['primac.def']
-endif
-
 primac = library('primac', sources: sources,
     c_static_args : '-DPRIMAC_STATIC',
     include_directories: include_directories('include'),
-    link_with: primaf,
-    pic: true,
     link_language: 'fortran',
-    override_options : [c_standard])
+    link_with: primaf,
+    override_options : [c_standard],
+    pic: true,
+    vs_module_defs: 'primac.def',
+)
 
 if build_machine.system() == 'windows'
     # TODO: Let's see if this is really necessary
