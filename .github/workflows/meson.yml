@@ -141,8 +141,8 @@ jobs:
 
           CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.cflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install build
           meson configure build  # This merely displays config info, similar to cmake -LAH
-          meson compile --verbose -C build install
-          meson compile --verbose -C build tests
+          # TODO: Should I setup targets the same way as in CMake?
+          meson compile --verbose -C build
           # TODO: Need to add the stress suite so I can ignore it
           meson test --verbose --print-errorlogs --no-suite stress -C build
         env:
