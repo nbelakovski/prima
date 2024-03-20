@@ -7,6 +7,7 @@ See https://fortran-lang.discourse.group/t/frecursive-assume-recursion-and-recur
 '''
 )
 
-option('prima_enable_examples', type: 'boolean', value: false, description: 'build examples by default')
-option('prima_enable_testing', type: 'boolean', value: false, description: 'build tests')
-option('prima_enable_c', type: 'boolean', value: true, description: 'C binding')
+option('prima_enable_examples', type: 'boolean', value: false, description: 'Build examples.')
+option('prima_enable_testing', type: 'boolean', value: false, description: 'Build tests.')
+option('prima_enable_c', type: 'boolean', value: true, description: 'Build C interface.')
+option('CI', type: 'boolean', value: false, description: 'Whether or not we are running in CI.')

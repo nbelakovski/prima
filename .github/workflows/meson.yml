@@ -139,7 +139,7 @@ jobs:
         run: |
           meson --version
 
-          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install build
+          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install -DCI=true build
           meson configure build  # This merely displays config info, similar to cmake -LAH
           # TODO: Should I setup targets the same way as in CMake?
           meson compile --verbose -C build
@@ -213,7 +213,7 @@ jobs:
           #$CC --version
           meson --version
 
-          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install build
+          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install -DCI=true build
           meson configure build  # This merely displays config info, similar to cmake -LAH
           meson compile --verbose -C build
           # TODO: Need to add the stress suite so I can ignore it

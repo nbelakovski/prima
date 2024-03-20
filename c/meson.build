@@ -1,4 +1,4 @@
-c_standard = 'c_std=gnu99'
+c_standard = 'c_std=gnu99,c99'
 
 sources = ['cintrf.f90',
     'cobyla_c.f90',
@@ -63,26 +63,24 @@ endforeach
 c_examples = alias_target('c_examples', example_executables)
 
 
-# Gdb tests
-gdb = find_program('gdb', required: false)
-if not gdb.found()
-    # On some macOS systems there is an extra 'g' in front
-    gdb = find_program('ggdb', required: false)
-endif
+# Within CI, we'd like to run with gdb so that if there's a segfault the logs will have a stacktrace we can use to investigate.
+if get_option('CI') and build_machine.system() != 'darwin'  # Apple security policy will not allow running gdb in CI
+    gdb = find_program('gdb', required: false)
 
-if gdb.found()
-    foreach example_executable : example_executables
-        test(example_executable.name() + '_gdb', gdb,
-            args : ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
-            # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
-            # run in parallel
-            is_parallel: false,
-            suite: ['gdb', example_executable.name() + '_gdb'],
-            timeout: 10,
-        )
-    endforeach
-else
-    message('gdb not found, not running gdb tests')
+    if gdb.found()
+        foreach example_executable : example_executables
+            test(example_executable.name() + '_gdb', gdb,
+                args : ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
+                # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
+                # run in parallel
+                is_parallel: false,
+                suite: ['gdb', example_executable.name() + '_gdb'],
+                timeout: 10,
+            )
+        endforeach
+    else
+        message('gdb not found, not running gdb tests')
+    endif
 endif
 
 
