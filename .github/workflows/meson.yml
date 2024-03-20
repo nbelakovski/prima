@@ -23,7 +23,7 @@ permissions:
 
 jobs:
 
-  cmake-main:
+  meson-main:
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     strategy:
@@ -156,7 +156,7 @@ jobs:
         shell: bash
 
 
-  cmake-other:
+  meson-other:
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -213,10 +213,9 @@ jobs:
           #$CC --version
           meson --version
 
-          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=install build
+          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install build
           meson configure build  # This merely displays config info, similar to cmake -LAH
-          meson compile --verbose -C build install
-          meson compile --verbose -C build tests
+          meson compile --verbose -C build
           # TODO: Need to add the stress suite so I can ignore it
           # As of 20240316, CMake test fails on cobyla with the Classic flang, AOCC flang, and
           # nvfortran. See https://github.com/libprima/prima/issues/165
@@ -238,7 +237,7 @@ jobs:
   check_success_timeout:
     runs-on: ubuntu-latest
     if: ${{ !cancelled() }}
-    needs: [cmake-main, cmake-other]
+    needs: [meson-main, meson-other]
     steps:
       - name: Clone the GitHub actions scripts
         uses: actions/checkout@v4
