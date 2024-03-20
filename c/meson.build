@@ -9,7 +9,17 @@ sources = ['cintrf.f90',
     'prima.c'
 ]
 
+defines = [
+    '-DPRIMA_REAL_PRECISION=64',
+    '-DPRIMA_INTEGER_KIND=0',
+]
+if build_machine.system() == 'windows' and get_option('default_library') == 'shared'
+    # It seems CMake handles this automatically but Meson does not
+    defines += ['-Dprimac_EXPORTS']
+endif
+
 primac = library('primac', sources: sources,
+    c_args: defines,
     c_static_args : '-DPRIMAC_STATIC',
     include_directories: include_directories('include'),
     link_language: 'fortran',
