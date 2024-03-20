@@ -57,8 +57,13 @@ prima_f_sources = [
   'uobyqa/uobyqa.f90',
 ]
 
-primaf = static_library('prima_f',
+primaf = library('primaf',
   prima_f_sources,
+  fortran_args : [
+    '-DPRIMA_REAL_PRECISION=64',
+    '-DPRIMA_INTEGER_KIND=0',
+  ],
+  pic : true,
 )
 
 subdir('examples')
