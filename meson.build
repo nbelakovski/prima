@@ -1,4 +1,6 @@
-project('prima', 'fortran')
+project('prima', 'fortran',
+    # default_options : ['build_library=shared']
+)
 
 fortran_compiler = meson.get_compiler('fortran')
 
@@ -39,18 +41,6 @@ if (build_machine.system() == 'darwin') and (fortran_compiler.get_id() == 'intel
     add_project_link_arguments('-Wl,-undefined,dynamic_lookup', language : 'fortran')
 endif
 
-configure_file(
-    input: 'cmdfile.gdb',
-    copy: true,
-    output: 'cmdfile.gdb',  # This will install it into the build directory
-    # TODO: I'm not sure if that's the right place to put it, but we'll deal with that later.
-    # I wasn't able to get it to construct the file at build time. It's possible, but it gets
-    # really complicated with all sort of shell redirection, particular since we use $ in
-    # the file. Much more straightforward to just keep it around and copy it.
-)
-
-# custom_target
-
 subdir('fortran')
 
 if get_option('prima_enable_c')
@@ -58,4 +48,9 @@ if get_option('prima_enable_c')
     subdir('c')
 endif
 
-alias_target('examples', fortran_examples)
+alias_target('examples', [fortran_examples, c_examples])
+
+
+# TODO: Get version from git
+# TODO: Figure out package config file
+# TODO: Test in CI with all the different compilers and platforms

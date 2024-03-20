@@ -57,7 +57,7 @@ prima_f_sources = [
   'uobyqa/uobyqa.f90',
 ]
 
-lib_prima_f = static_library('prima_f',
+primaf = static_library('prima_f',
   prima_f_sources,
 )
 
