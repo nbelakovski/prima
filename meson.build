@@ -41,6 +41,20 @@ if (build_machine.system() == 'darwin') and (fortran_compiler.get_id() == 'intel
     add_project_link_arguments('-Wl,-undefined,dynamic_lookup', language : 'fortran')
 endif
 
+
+if build_machine.system() == 'windows'
+    fs = import('fs')
+    cmdfile = fs.read('cmdfile.gdb')
+    cmdfile = cmdfile.replace('\n', '\r\n')
+    configure_file(input: 'cmdfile.gdb',
+        output: 'cmdfile.gdb',
+        capture: true,
+        command: [
+            'echo',
+            cmdfile
+        ])
+endif
+
 subdir('fortran')
 
 if get_option('prima_enable_c')
@@ -51,6 +65,31 @@ endif
 alias_target('examples', [fortran_examples, c_examples])
 
 
-# TODO: Get version from git
+# Get version from git or the archive file
+git = find_program('git', required : false)
+if git.found()
+    prima_version = run_command(git, 'describe', '--tags', '--always', '--dirty',
+        check : true,
+        capture : true).stdout().strip()
+else
+    # This may happen in the case of building for MacPorts. In this situation the
+    # repo was presumably archived, in which case the .git-archival.txt file should
+    # have been replace with the version. We import the fs module and read the file.
+    # If it contain the word 'describe' that means that this isn't an archive.
+    fs = import('fs')
+    prima_version = fs.read('.git-archival.txt')
+    if prima_version.contains('describe')
+        message('git was not detected and .git-archival.txt does not contain a version number.')
+        prima_version = 'unknown'
+    endif
+endif
+
+# Remove the leading v from PRIMA_VERSION, if it contains one.
+if prima_version.startswith('v')
+    prima_version = prima_version.substring(1)
+endif
+message('Setting PRIMA_VERSION to ' + prima_version)
+
+
 # TODO: Figure out package config file
 # TODO: Test in CI with all the different compilers and platforms
