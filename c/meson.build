@@ -41,7 +41,13 @@ endif
 # endif ()
 
 if (meson.get_compiler('c').get_id() == 'clang') and (meson.get_compiler('fortran').get_id() == 'flang')
+    # With flang, meson insists upon linking -lflang and -lpgmath. Our program links successfully without those,
+    # (CMake does not include them and succeeds) but meson insists. However meson does not know where to find these
+    # libraries, so we need to supply the path ourselves. The code below finds the path of flang, goes back a directory,
+    # and adds the 'lib/' directory. It is not designed to be cross platform since we do not test this compiler on
+    # macOS or Windows.
     flang_location = run_command('which', 'flang', capture: true, check: true).stdout().strip()
+    # Remove the last 9 characters ('bin/flang') and add lib/
     flang_libs = flang_location.substring(0, -9) / 'lib'
     message('flang_libs: -L' + flang_libs)
     common = declare_dependency(

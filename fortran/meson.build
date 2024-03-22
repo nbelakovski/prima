@@ -67,12 +67,21 @@ prima_f_sources = [
 #   endif
 # endif
 
-primaf = library('primaf',
-  prima_f_sources,
-  fortran_args : [
+if build_machine.system() == 'windows' and meson.get_compiler('fortran').get_id().startswith('intel')
+  defines = [
+    '/DPRIMA_REAL_PRECISION=64',
+    '/DPRIMA_INTEGER_KIND=0',
+  ]
+else
+  defines = [
     '-DPRIMA_REAL_PRECISION=64',
     '-DPRIMA_INTEGER_KIND=0',
-  ],
+  ]
+endif
+
+primaf = library('primaf',
+  prima_f_sources,
+  fortran_args : defines,
   pic : true,
   vs_module_defs: fortran_compiler.get_id() == 'gcc' ? 'primaf-GNU.def' : 'primaf-Intel.def',
 )
