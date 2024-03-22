@@ -224,6 +224,7 @@ jobs:
         shell: bash
         env:
           FC: ${{ matrix.toolchain.compiler }}
+          CC: ${{ matrix.toolchain.compiler == 'flang' && 'clang' || '' }}
 
       - name: Stress test
         if: ${{ github.event_name == 'schedule' || github.event.inputs.stress-test == 'true' }}
