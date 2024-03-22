@@ -40,11 +40,21 @@ endif
 #   # I believe the above command might not be necessary
 # endif ()
 
-
-common = declare_dependency(
-    compile_args: defines, 
-    include_directories : include_directories('include'),
-    link_with : [primac, primaf])
+if (meson.get_compiler('c').get_id() == 'clang') and (meson.get_compiler('fortran').get_id() == 'flang')
+    flang_location = run_command('which', 'flang', capture: true, check: true).stdout().strip()
+    flang_libs = flang_location.substring(0, -9) / 'lib'
+    message('flang_libs: -L' + flang_libs)
+    common = declare_dependency(
+        compile_args: defines,
+        include_directories : include_directories('include'),
+        link_args : ['-L' + flang_libs],
+        link_with : [primac, primaf])
+else
+    common = declare_dependency(
+        compile_args: defines,
+        include_directories : include_directories('include'),
+        link_with : [primac, primaf])
+endif
 
 examples = {
     'bobyqa_example_c': 'examples/bobyqa/bobyqa_example.c',
