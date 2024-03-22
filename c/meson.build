@@ -44,7 +44,7 @@ endif
 common = declare_dependency(
     compile_args: defines, 
     include_directories : include_directories('include'),
-    link_with : primac)
+    link_with : [primac, primaf])
 
 examples = {
     'bobyqa_example_c': 'examples/bobyqa/bobyqa_example.c',
