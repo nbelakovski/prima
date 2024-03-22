@@ -42,6 +42,7 @@ endif
 
 
 common = declare_dependency(
+    compile_args: defines, 
     include_directories : include_directories('include'),
     link_with : primac)
 
@@ -55,7 +56,8 @@ examples = {
 
 example_executables = []
 foreach name, source : examples
-    example_exe = executable(name, sources : source, dependencies: common)
+    example_exe = executable(name, sources : source, dependencies: common,
+        override_options: [c_standard])
     test(name, example_exe, timeout: 10, suite: ['c_tests', name])
     example_executables += [example_exe]
 endforeach
