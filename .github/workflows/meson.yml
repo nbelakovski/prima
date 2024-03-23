@@ -146,7 +146,7 @@ jobs:
         run: |
           meson --version
 
-          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install -DCI=true build
+          CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install -DCI=true -Dprima_enable_examples=true build
           meson configure build  # This merely displays config info, similar to cmake -LAH
           # TODO: Should I setup targets the same way as in CMake?
           meson compile --verbose -C build
