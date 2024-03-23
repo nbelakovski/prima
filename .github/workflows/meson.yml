@@ -134,12 +134,17 @@ jobs:
       - name: Override C compiler
         if: ${{ matrix.toolchain.cc }}
         run: echo "CC=${{ matrix.toolchain.cc }}" >> $env:GITHUB_ENV
+      
+      - name: Find stdbool
+        if: ${{ matrix.os == 'windows-latest' && matrix.toolchain.version <= 12 }}
+        run: |
+          # Find stdbool.h
+          find /c/ -name stdbool.h 2>/dev/null
+        shell: bash
 
       - name: Build and test
         run: |
           meson --version
-
-          find / -name stdbool.h
 
           CFLAGS="${{ matrix.toolchain.cflags }}" FFLAGS="${{ matrix.toolchain.fflags }}" meson setup --backend=ninja --buildtype=debugoptimized --prefix=$(pwd)/install -DCI=true build
           meson configure build  # This merely displays config info, similar to cmake -LAH
