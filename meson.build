@@ -59,8 +59,13 @@ if build_machine.system() == 'windows'
     # executables in the same directory so the executables can find the dlls at
     # runtime.
     runtime_output_directory = meson.current_build_dir() / 'bin'
+    runtime_output_directory_folder = custom_target(
+        'runtime_output_directory_folder',
+        input: 'meson.build',  # Can be any (existing) file, not actually used
+        command: ['mkdir', '-p', runtime_output_directory],
+        output: '.workaround'  # Can be any name, not actually used
+        )
 endif
-
 subdir('fortran')
 
 if get_option('prima_enable_c')

@@ -89,9 +89,15 @@ primaf = library('primaf',
 )
 
 if build_machine.system() == 'windows'
-    configure_file(input: primaf.full_path(),
-        output: runtime_output_directory / fs.name(primaf.full_path()),
-        copy: true)
+    # The copy is done as a side effect because meson does not allow copying
+    # files to other directories. 
+    custom_target('primaf_copy',
+        build_always_stale: true,
+        depends: runtime_output_directory_folder,
+        input: primaf,
+        command: ['cp', primaf.full_path(), runtime_output_directory / fs.name(primaf.full_path())],
+        output: fs.name(primaf.full_path()) + '.workaround',
+    )
 endif
 # TODO: Add the examples to this file
 # Make sure to add build_by_default : get_option('prima_enable_examples')

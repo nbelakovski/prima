@@ -31,10 +31,16 @@ primac = library('primac', sources: sources,
 )
 
 if build_machine.system() == 'windows'
-    configure_file(
-        input: primaf.full_path(),
-        output: runtime_output_directory / fs.name(primaf.full_path()),
-        copy: true
+    # The copy is done as a side effect because meson does not allow copying
+    # files to other directories. 
+    custom_target('primac_copy',
+        build_always_stale: true,
+        depends: runtime_output_directory_folder,
+        input: primac,
+        command: ['cp', primac.full_path(), runtime_output_directory / fs.name(primac.full_path())],
+        # Output can be any name so long as it does not conflict with existing targets
+        # It is not actually created
+        output: fs.name(primac.full_path()) + '.workaround',
     )
 endif
 
@@ -87,10 +93,16 @@ foreach name, source : examples
         test(name, example_exe, timeout: 10, suite: ['c_tests', name])
     endif
     if build_machine.system() == 'windows'
-        copy = configure_file(
-            input: primaf.full_path(),
-            output: runtime_output_directory / fs.name(primaf.full_path()),
-            copy: true
+        # The copy is done as a side effect because meson does not allow copying
+        # files to other directories. 
+        copy = custom_target(example_exe.name() + '_copy',
+            build_always_stale: true,
+            depends: runtime_output_directory_folder,
+            input: example_exe,
+            command: ['cp', example_exe.full_path(), runtime_output_directory / fs.name(example_exe.full_path())],
+            # Output can be any name so long as it does not conflict with existing targets
+            # It is not actually created
+            output: fs.name(example_exe.full_path()) + '.workaround',
         )
         example_executables += [copy]
     else
