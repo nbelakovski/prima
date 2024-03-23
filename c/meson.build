@@ -35,6 +35,7 @@ if build_machine.system() == 'windows'
     # files to other directories. 
     custom_target('primac_copy',
         build_always_stale: true,
+        build_by_default: true,
         depends: runtime_output_directory_folder,
         input: primac,
         command: ['cp', primac.full_path(), runtime_output_directory / fs.name(primac.full_path())],
@@ -98,7 +99,8 @@ foreach name, source : examples
         # files to other directories. 
         name_w_ext = fs.name(example_exe.full_path())  
         copy = custom_target(name_w_ext + '_copy',
-            build_always_stale: true,
+            build_always_stale: get_option('prima_enable_examples'),
+            build_by_default: get_option('prima_enable_examples'),
             depends: runtime_output_directory_folder,
             input: example_exe,
             command: ['cp', example_exe.full_path(), runtime_output_directory / name_w_ext],
@@ -112,11 +114,11 @@ foreach name, source : examples
     endif
 endforeach
 
-targets = []
+targets_to_alias = []
 foreach path, target : example_executables
-    targets += target
+    targets_to_alias += target
 endforeach
-c_examples = alias_target('c_examples', targets)
+c_examples = alias_target('c_examples', targets_to_alias)
 
 
 # Within CI, we'd like to run with gdb so that if there's a segfault the logs will have a stacktrace we can use to investigate.

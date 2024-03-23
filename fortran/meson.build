@@ -93,9 +93,12 @@ if build_machine.system() == 'windows'
     # files to other directories. 
     custom_target('primaf_copy',
         build_always_stale: true,
+        build_by_default: true,
         depends: runtime_output_directory_folder,
         input: primaf,
         command: ['cp', primaf.full_path(), runtime_output_directory / fs.name(primaf.full_path())],
+        # Output can be any name so long as it does not conflict with existing targets
+        # It is not actually created
         output: fs.name(primaf.full_path()) + '.workaround',
     )
 endif
