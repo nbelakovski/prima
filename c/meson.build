@@ -79,7 +79,7 @@ examples = {
     'uobyqa_example_c': 'examples/uobyqa/uobyqa_example.c'
 }
 
-example_executables = []
+example_executables = {}
 foreach name, source : examples
     example_exe = executable(name,
         build_by_default: get_option('prima_enable_examples'),
@@ -92,25 +92,29 @@ foreach name, source : examples
     if get_option('prima_enable_examples')
         test(name, example_exe, timeout: 10, suite: ['c_tests', name])
     endif
+    
     if build_machine.system() == 'windows'
         # The copy is done as a side effect because meson does not allow copying
         # files to other directories. 
-        copy = custom_target(fs.name(example_exe.full_path()) + '_copy',
+        name_w_ext = fs.name(example_exe.full_path())  
+        copy = custom_target(name_w_ext + '_copy',
             build_always_stale: true,
             depends: runtime_output_directory_folder,
             input: example_exe,
-            command: ['cp', example_exe.full_path(), runtime_output_directory / fs.name(example_exe.full_path())],
+            command: ['cp', example_exe.full_path(), runtime_output_directory / name_w_ext],
             # Output can be any name so long as it does not conflict with existing targets
             # It is not actually created
-            output: fs.name(example_exe.full_path()) + '.workaround',
+            output: name_w_ext + '.workaround',
         )
-        example_executables += [copy]
+        example_executables += {runtime_output_directory / name_w_ext: copy}
     else
-        example_executables += [example_exe]
+        example_executables += {example_exe.full_path(): example_exe}
     endif
 endforeach
 
-c_examples = alias_target('c_examples', example_executables)
+foreach path, target : example_executables
+    c_examples = alias_target('c_examples', target)
+endforeach
 
 
 # Within CI, we'd like to run with gdb so that if there's a segfault the logs will have a stacktrace we can use to investigate.
@@ -118,14 +122,14 @@ if get_option('prima_enable_examples') and get_option('CI') and build_machine.sy
     gdb = find_program('gdb', required: false)
 
     if gdb.found()
-        foreach example_executable : example_executables
-            test(fs.stem(example_executable.full_path()) + '_gdb', gdb,
-                args: ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
-                depends: example_executable,
+        foreach path, target : example_executables
+            test(fs.stem(target.full_path()) + '_gdb', gdb,
+                args: ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', path],
+                depends: target,
                 # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
                 # run in parallel
                 is_parallel: false,
-                suite: ['gdb', fs.stem(example_executable.full_path()) + '_gdb'],
+                suite: ['gdb', fs.stem(target.full_path()) + '_gdb'],
                 timeout: 10,
             )
         endforeach
