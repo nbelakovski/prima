@@ -31,7 +31,11 @@ primac = library('primac', sources: sources,
 )
 
 if build_machine.system() == 'windows'
-    fs.copyfile(primac.full_path(), runtime_output_directory)
+    configure_file(
+        input: primaf.full_path(),
+        output: runtime_output_directory / fs.name(primaf.full_path()),
+        copy: true
+    )
 endif
 
 # if (NOT BUILD_SHARED_LIBS)
@@ -83,7 +87,11 @@ foreach name, source : examples
         test(name, example_exe, timeout: 10, suite: ['c_tests', name])
     endif
     if build_machine.system() == 'windows'
-        copy = fs.copyfile(example_exe.full_path(), runtime_output_directory)
+        copy = configure_file(
+            input: primaf.full_path(),
+            output: runtime_output_directory / fs.name(primaf.full_path()),
+            copy: true
+        )
         example_executables += [copy]
     else
         example_executables += [example_exe]
@@ -94,13 +102,14 @@ c_examples = alias_target('c_examples', example_executables)
 
 
 # Within CI, we'd like to run with gdb so that if there's a segfault the logs will have a stacktrace we can use to investigate.
-if get_option('CI') and build_machine.system() != 'darwin'  # Apple security policy will not allow running gdb in CI
+if get_option('prima_enable_examples') and get_option('CI') and build_machine.system() != 'darwin'  # Apple security policy will not allow running gdb in CI
     gdb = find_program('gdb', required: false)
 
     if gdb.found()
         foreach example_executable : example_executables
             test(example_executable.name() + '_gdb', gdb,
                 args: ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
+                depends: example_executable,
                 # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
                 # run in parallel
                 is_parallel: false,

@@ -89,7 +89,9 @@ primaf = library('primaf',
 )
 
 if build_machine.system() == 'windows'
-    fs.copyfile(primaf.full_path(), runtime_output_directory)
+    configure_file(input: primaf.full_path(),
+        output: runtime_output_directory / fs.name(primaf.full_path()),
+        copy: true)
 endif
 # TODO: Add the examples to this file
 # Make sure to add build_by_default : get_option('prima_enable_examples')
