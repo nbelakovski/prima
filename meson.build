@@ -2,6 +2,9 @@ project('prima', 'fortran',
     # default_options : ['build_library=shared']
 )
 
+
+fs = import('fs')
+
 fortran_compiler = meson.get_compiler('fortran')
 
 # the compiler enables an executable stack because of nested functions and this is fine
@@ -43,7 +46,6 @@ endif
 
 
 if build_machine.system() == 'windows'
-    fs = import('fs')
     cmdfile = fs.read('cmdfile.gdb')
     cmdfile = cmdfile.replace('\n', '\r\n')
     configure_file(input: 'cmdfile.gdb',
@@ -53,6 +55,10 @@ if build_machine.system() == 'windows'
             'echo',
             cmdfile
         ])
+    # Since Windows does not have a concept of rpath, we put all the dlls and
+    # executables in the same directory so the executables can find the dlls at
+    # runtime.
+    runtime_output_directory = meson.current_build_dir() / 'bin'
 endif
 
 subdir('fortran')
@@ -73,10 +79,10 @@ if git.found()
         capture : true).stdout().strip()
 else
     # This may happen in the case of building for MacPorts. In this situation the
-    # repo was presumably archived, in which case the .git-archival.txt file should
-    # have been replace with the version. We import the fs module and read the file.
-    # If it contain the word 'describe' that means that this isn't an archive.
-    fs = import('fs')
+    # repo was presumably archived, in which case the contents of the .git-archival.txt file
+    # should have been replace with the version. We read the file and see if it contains the
+    # word 'describe', which would indicate that its contents were'nt replaced and this isn't
+    # an archive. 
     prima_version = fs.read('.git-archival.txt')
     if prima_version.contains('describe')
         message('git was not detected and .git-archival.txt does not contain a version number.')

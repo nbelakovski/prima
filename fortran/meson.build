@@ -73,15 +73,26 @@ defines = [
     '-DPRIMA_INTEGER_KIND=0',
 ]
 if build_machine.system() == 'windows' and meson.get_compiler('fortran').get_id().startswith('intel')
-  defines += [
-    '-fpp',]
+    # This was necessary so that #include's and other preprocessing directives in Fortran files
+    # could be processed by the intel compiler. It seems that this should probably go into meson itself,
+    # since CMake was able to add this on its own and meson adds this for some Fortran compilers but
+    # not all.
+    defines += ['-fpp']
 endif
 
 primaf = library('primaf',
   prima_f_sources,
   fortran_args : defines,
+  install : true,
   pic : true,
   vs_module_defs: fortran_compiler.get_id() == 'gcc' ? 'primaf-GNU.def' : 'primaf-Intel.def',
 )
+
+if build_machine.system() == 'windows'
+    fs.copyfile(primaf.full_path(), runtime_output_directory)
+endif
+# TODO: Add the examples to this file
+# Make sure to add build_by_default : get_option('prima_enable_examples')
+# And to add the tests under a similar flag
 
 subdir('examples')

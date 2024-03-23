@@ -20,18 +20,18 @@ endif
 
 primac = library('primac', sources: sources,
     c_args: defines,
-    c_static_args : '-DPRIMAC_STATIC',
+    c_static_args: '-DPRIMAC_STATIC',
     include_directories: include_directories('include'),
+    install: true,
     link_language: 'fortran',
     link_with: primaf,
-    override_options : [c_standard],
+    override_options: [c_standard],
     pic: true,
     vs_module_defs: 'primac.def',
 )
 
 if build_machine.system() == 'windows'
-    # TODO: Let's see if this is really necessary
-    # set_target_properties(primac PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+    fs.copyfile(primac.full_path(), runtime_output_directory)
 endif
 
 # if (NOT BUILD_SHARED_LIBS)
@@ -49,17 +49,16 @@ if (meson.get_compiler('c').get_id() == 'clang') and (meson.get_compiler('fortra
     flang_location = run_command('which', 'flang', capture: true, check: true).stdout().strip()
     # Remove the last 9 characters ('bin/flang') and add lib/
     flang_libs = flang_location.substring(0, -9) / 'lib'
-    message('flang_libs: -L' + flang_libs)
     common = declare_dependency(
         compile_args: defines,
-        include_directories : include_directories('include'),
-        link_args : ['-L' + flang_libs],
-        link_with : [primac, primaf])
+        include_directories: include_directories('include'),
+        link_args: ['-L' + flang_libs],
+        link_with: [primac, primaf])
 else
     common = declare_dependency(
         compile_args: defines,
-        include_directories : include_directories('include'),
-        link_with : [primac, primaf])
+        include_directories: include_directories('include'),
+        link_with: [primac, primaf])
 endif
 
 examples = {
@@ -72,10 +71,23 @@ examples = {
 
 example_executables = []
 foreach name, source : examples
-    example_exe = executable(name, sources : source, dependencies: common,
-        override_options: [c_standard])
-    test(name, example_exe, timeout: 10, suite: ['c_tests', name])
-    example_executables += [example_exe]
+    example_exe = executable(name,
+        build_by_default: get_option('prima_enable_examples'),
+        dependencies: common,
+        override_options: [c_standard],
+        sources: source,
+    )
+    # We need to put the tests under an if statement because otherwise they would
+    # negate the build_by_default option above. See https://github.com/mesonbuild/meson/issues/2518
+    if get_option('prima_enable_examples')
+        test(name, example_exe, timeout: 10, suite: ['c_tests', name])
+    endif
+    if build_machine.system() == 'windows'
+        copy = fs.copyfile(example_exe.full_path(), runtime_output_directory)
+        example_executables += [copy]
+    else
+        example_executables += [example_exe]
+    endif
 endforeach
 
 c_examples = alias_target('c_examples', example_executables)
@@ -88,7 +100,7 @@ if get_option('CI') and build_machine.system() != 'darwin'  # Apple security pol
     if gdb.found()
         foreach example_executable : example_executables
             test(example_executable.name() + '_gdb', gdb,
-                args : ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
+                args: ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
                 # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
                 # run in parallel
                 is_parallel: false,
