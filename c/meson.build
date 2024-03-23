@@ -95,7 +95,7 @@ foreach name, source : examples
     if build_machine.system() == 'windows'
         # The copy is done as a side effect because meson does not allow copying
         # files to other directories. 
-        copy = custom_target(example_exe.name() + '_copy',
+        copy = custom_target(fs.name(example_exe.full_path()) + '_copy',
             build_always_stale: true,
             depends: runtime_output_directory_folder,
             input: example_exe,
