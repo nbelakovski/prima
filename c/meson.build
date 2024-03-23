@@ -112,9 +112,11 @@ foreach name, source : examples
     endif
 endforeach
 
+targets = []
 foreach path, target : example_executables
-    c_examples = alias_target('c_examples', target)
+    targets += target
 endforeach
+c_examples = alias_target('c_examples', targets)
 
 
 # Within CI, we'd like to run with gdb so that if there's a segfault the logs will have a stacktrace we can use to investigate.
