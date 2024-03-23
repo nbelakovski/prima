@@ -119,13 +119,13 @@ if get_option('prima_enable_examples') and get_option('CI') and build_machine.sy
 
     if gdb.found()
         foreach example_executable : example_executables
-            test(example_executable.name() + '_gdb', gdb,
+            test(fs.stem(example_executable.full_path()) + '_gdb', gdb,
                 args: ['-batch', '--command=' + meson.project_source_root() / 'cmdfile.gdb', example_executable.full_path()],
                 depends: example_executable,
                 # On my machine I ran into some intermittent failures that were resolved by ensuring these tests do not
                 # run in parallel
                 is_parallel: false,
-                suite: ['gdb', example_executable.name() + '_gdb'],
+                suite: ['gdb', fs.stem(example_executable.full_path()) + '_gdb'],
                 timeout: 10,
             )
         endforeach
