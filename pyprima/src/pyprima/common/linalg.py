@@ -2,6 +2,193 @@ import numpy as np
 from .consts import DEBUGGING, EPS, REALMAX, REALMIN
 from .present import present
 
+
+# Functions like inprod, matprod, etc. are for comparing the Python implementation
+# with the Fortran implementation. When Fortran is compiled in debug mode and Python
+# is using these manual matrix multiplication functions, most of the differences in
+# floating point calculations between Python and Fortran should be minimized, although
+# not all of them. This is helpful when translating the Fortran code to Python,
+# but once all the algorithms are translated I don't think these functions need to
+# remain.
+COMPARING = False
+
+
+def inprod(x, y):
+    if not COMPARING:
+        return np.dot(x, y)
+    result = 0
+    for i in range(len(x)):
+        result += x[i] * y[i]
+    return result
+
+
+def matprod12(x, y):
+    result = np.zeros(y.shape[1])
+    for i in range(y.shape[1]):
+        result[i] = inprod(x, y[:, i])
+    return result
+
+
+def matprod21(x, y):
+    result = np.zeros(x.shape[0])
+    for i in range(x.shape[1]):
+        result += x[:, i] * y[i]
+    return result
+
+
+def matprod22(x, y):
+    result = np.zeros((x.shape[0], y.shape[1]))
+    for i in range(y.shape[1]):
+        for j in range(x.shape[1]):
+            result[:, j] += x[:, i] * y[i, j]
+    return result
+
+
+def matprod(x, y):
+    if not COMPARING:
+        return x@y
+    if len(x.shape) == 1 and len(y.shape) == 1:
+        return inprod(x, y)
+    elif len(x.shape) == 1 and len(y.shape) == 2:
+        return matprod12(x, y)
+    elif len(x.shape) == 2 and len(y.shape) == 1:
+        return matprod21(x, y)
+    elif len(x.shape) == 2 and len(y.shape) == 2:
+        return matprod22(x, y)
+    else:
+        raise ValueError(f'Invalid shapes for x and y: {x.shape} and {y.shape}')
+
+
+def outprod(x, y):
+    if not COMPARING:
+        return np.outer(x, y)
+    result = np.zeros((len(x), len(y)))
+    for i in range(len(x)):
+            result[:, i] = x * y[i]
+    return result
+
+
+def lsqr(A, b, Q, Rdiag):
+    if not COMPARING:
+        return np.linalg.lstsq(A, b, rcond=None)[0]
+
+    m = A.shape[0]
+    n = A.shape[1]
+
+    rank = min(m, n)
+
+    x = np.zeros(n)
+    y = b.copy()
+
+    for i in range(rank - 1, -1, -1):
+        yq = inprod(y, Q[:, i])
+        yqa = inprod(np.abs(y), np.abs(Q[:, i]))
+        if isminor(yq, yqa):
+            x[i] = 0
+        else:
+            x[i] = yq / Rdiag[i]
+            y = y - x[i] * A[:, i]
+    return x
+
+
+def hypot(x1, x2):
+    if not COMPARING:
+        return np.hypot(x1, x2)
+    if not np.isfinite(x1):
+        r = abs(x1)
+    elif not np.isfinite(x2):
+        r = abs(x2)
+    else:
+        y = abs(np.array([x1, x2]))
+        y = np.array([min(y), max(y)])
+        if y[0] > np.sqrt(REALMIN) and y[1] < np.sqrt(REALMAX/2.1):
+            r = np.sqrt(sum(y*y))
+        elif y[1] > 0:
+            r = y[1] * np.sqrt((y[0]/y[1])*(y[0]/y[1]) + 1)
+        else:
+            r = 0
+    return r
+
+
+def norm(x):
+    if not COMPARING:
+        return np.linalg.norm(x)
+    # NOTE: Avoid np.pow! And exponentiation in general!
+    # It appears that in Fortran, x*x and x**2 are the same, but in Python they are not!
+    # Try it with x = 5 - 1e-15
+    result = np.sqrt(sum([xi*xi for xi in x]))
+    return result
+
+
+def istril(A, tol=0):
+    if not COMPARING:
+        return np.sum(np.tril(A) - A ) <= tol
+    # TODO: Fortran does this differently, we'll have to check that
+    return np.sum(np.tril(A) - A ) <= tol
+
+def istriu(A, tol=0):
+    if not COMPARING:
+        return np.sum(np.triu(A) - A ) <= tol
+    # TODO: Fortran does this differently, we'll have to check that
+    return np.sum(np.triu(A) - A ) <= tol
+
+
+def inv(A):
+    if not COMPARING:
+        return np.linalg.inv(A)
+    n = A.shape[0]
+    if istril(A):
+        # This case is invoked in COBYLA.
+        R = A.T
+        B = np.zeros((n, n))
+        for i in range(n):
+            B[i, i] = 1 / R[i, i]
+            B[:i, i] = -matprod(B[:i, :i], R[:i, i]) / R[i, i]
+        return B.T
+    elif istriu(A):
+        B = np.zeros((n, n))
+        for i in range(n):
+            B[i, i] = 1 / A[i, i]
+            B[:i, i] = -matprod(B[:i, :i], A[:i, i]) / A[i, i]
+    else:
+        # This is NOT the best algorithm for the inverse, but since the QR subroutine is available ...
+        Q, R, P = qr(A)
+        R = R.T
+        for i in range(n - 1, -1, -1):
+            B[:, i] = (Q[:, i] - matprod(B[:, i + 1:n], R[i + 1:n, i])) / R[i, i]
+        InvP = np.zeros(n)
+        InvP[P] = np.linspace(0, n - 1, n)
+        B = B[:, InvP].T
+    return B
+    
+
+def qr(A):
+    m = A.shape[0]
+    n = A.shape[1]
+
+    Q = np.eye(m)
+    T = A.T
+    P = np.linspace(0, n-1, n)
+
+    for j in range(n):
+        k = np.argmax(np.sum(T[j:n+1, j:m+1]**2, axis=1), axis=0)
+        if k > 0 and k <= n - j - 1:
+            k += j
+            P[j], P[k] = P[k], P[j]
+            T[[j, k], :] = T[[k, j], :]
+        for i in range(m-1, j-1, -1):
+            G = planerot(T[j, [j, i]]).T
+            T[j, [j, i]] = np.append(hypot(T[j, j], T[j, i]), 0)
+            T[j + 1:n, [j, i]] = matprod(T[j + 1:n, [j, i]], G)
+            Q[:, [j, i]] = matprod(Q[:, [j, i]], G)
+
+    R = T.T
+
+    return Q, R, P
+
+
+
+
 def planerot(x):
     '''
     As in MATLAB, planerot(x) returns a 2x2 Givens matrix G for x in R2 so that Y=G@x has Y[1] = 0.
@@ -57,18 +244,18 @@ def planerot(x):
         # 2. The direct calculation without involving T and U seems to work better; use it if possible.
         if (all(np.logical_and(np.sqrt(REALMIN) < np.abs(x), np.abs(x) < np.sqrt(REALMAX / 2.1)))):
             # Do NOT use HYPOTENUSE here; the best implementation for one may be suboptimal for the other
-            r = np.linalg.norm(x)
+            r = norm(x)
             c = x[0] / r
             s = x[1] / r
         elif (abs(x[0]) > abs(x[1])):
             t = x[1] / x[0]
-            u = max(1, abs(t), np.sqrt(1 + t**2))  # MAXVAL: precaution against rounding error.
+            u = max(1, abs(t), np.sqrt(1 + t*t))  # MAXVAL: precaution against rounding error.
             u *= np.sign(x[0]) ##MATLAB: u = sign(x(1))*sqrt(1 + t**2)
             c = 1 / u
             s = t / u
         else:
             t = x[0] / x[1]
-            u = max([1, abs(t), np.sqrt(1 + t**2)])  # MAXVAL: precaution against rounding error.
+            u = max([1, abs(t), np.sqrt(1 + t*t)])  # MAXVAL: precaution against rounding error.
             u *= np.sign(x[1]) ##MATLAB: u = sign(x(2))*sqrt(1 + t**2)
             c = t / u
             s = 1 / u
@@ -137,7 +324,7 @@ def isinv(A, B, tol=None):
 
     tol = tol if present(tol) else np.minimum(1e-3, 1e2 * EPS * np.maximum(np.size(A, 0), np.size(A, 1)))
     tol = np.max([tol, tol * np.max(abs(A)), tol * np.max(abs(B))])
-    is_inv = ((abs(A@B) - np.eye(n)) <= tol).all() or ((abs(B@A - np.eye(n))) <= tol).all()
+    is_inv = ((abs(matprod(A, B)) - np.eye(n)) <= tol).all() or ((abs(matprod(B, A) - np.eye(n))) <= tol).all()
 
     #===================#
     #  Calculation ends #
@@ -167,9 +354,9 @@ def isorth(A, tol=None):
         is_orth = False
     else:
         if present(tol):
-            is_orth = (abs(A.T@A - np.eye(num_vars)) <= np.maximum(tol, tol * np.max(abs(A)))).all()
+            is_orth = (abs(matprod(A.T, A) - np.eye(num_vars)) <= np.maximum(tol, tol * np.max(abs(A)))).all()
         else:
-            is_orth = (abs(A.T@A - np.eye(num_vars)) <= 0).all()
+            is_orth = (abs(matprod(A.T, A) - np.eye(num_vars)) <= 0).all()
 
     #====================#
     #  Calculation ends  #

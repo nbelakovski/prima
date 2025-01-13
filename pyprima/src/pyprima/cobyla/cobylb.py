@@ -5,7 +5,7 @@ from ..common.infos import INFO_DEFAULT, MAXTR_REACHED, DAMAGING_ROUNDING, \
                     SMALL_TR_RADIUS, CALLBACK_TERMINATE
 from ..common.evaluate import evaluate
 from ..common.history import savehist
-from ..common.linalg import isinv
+from ..common.linalg import isinv, matprod, inprod, norm
 from ..common.message import fmsg, retmsg, rhomsg
 from ..common.ratio import redrat
 from ..common.redrho import redrho
@@ -202,14 +202,14 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # the performance of COBYLA in terms of the number of function evaluations. The
         # system was solved by SOLVE in LINALG_MOD based on a QR factorization of SIM
         # (not necessarily a good algorithm). No preconditioning or scaling was used.
-        g = (fval[:num_vars] - fval[num_vars])@simi
+        g = matprod((fval[:num_vars] - fval[num_vars]), simi)
         A[:, :m_lcon] = amat.T if amat is not None else amat
-        A[:, m_lcon:] = ((conmat[m_lcon:, :num_vars] - 
-                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T)@simi).T
+        A[:, m_lcon:] = matprod((conmat[m_lcon:, :num_vars] -
+                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T), simi).T
 
         # Calculate the trust-region trial step d. Note that d does NOT depend on cpen.
         d = trstlp(A, -conmat[:, num_vars], delta, g)
-        dnorm = min(delta, np.linalg.norm(d))
+        dnorm = min(delta, norm(d))
 
         # Is the trust-region trial step short? N.B.: we compare DNORM with RHO, not
         # DELTA. Powell's code especially defines SHORTD by SHORTD = (DNORM < 0.5 *
@@ -232,8 +232,8 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # 2. PREREF may be negative or 0, but it is positive when PREREC = 0 and shortd
         # is False
         # 3. Due to 2, in theory, max(PREREC, PREREF) > 0 if shortd is False.
-        preref = -np.dot(d, g)  # Can be negative
-        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + d@A))
+        preref = -inprod(d, g)  # Can be negative
+        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + matprod(d, A)))
 
         # Evaluate PREREM, which is the predicted reduction in the merit function.
         # In theory, PREREM >= 0 and it is 0 iff CPEN = 0 = PREREF. This may not be true
@@ -523,7 +523,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
     x = sim[:, num_vars] + d
     if (info == SMALL_TR_RADIUS and
             shortd and
-            np.linalg.norm(x - sim[:, num_vars]) > 1.0E-3 * rhoend and
+            norm(x - sim[:, num_vars]) > 1.0E-3 * rhoend and
             nf < maxfun):
         # Zaikun 20230615: UPDATEXFC or UPDATEPOLE is not called since the last trust-region step. Hence
         # SIM[:, NUM_VARS] remains unchanged. Otherwise SIM[:, NUM_VARS] + D would not make sense.
@@ -613,18 +613,18 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
             break
 
         # Calculate the linear approximations to the objective and constraint functions.
-        g = (fval[:num_vars] - fval[num_vars])@simi
+        g = matprod(fval[:num_vars] - fval[num_vars], simi)
         A[:, :m_lcon] = amat.T if amat is not None else amat
-        A[:, m_lcon:] = ((conmat[m_lcon:, :num_vars] - 
-                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T)@simi).T
+        A[:, m_lcon:] = matprod((conmat[m_lcon:, :num_vars] -
+                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T), simi).T
 
         # Calculate the trust-region trial step D. Note that D does NOT depend on CPEN.
         d = trstlp(A, -conmat[:, num_vars], delta, g)
 
         # Predict the change to F (PREREF) and to the constraint violation (PREREC) due
         # to D.
-        preref = -np.dot(d, g)  # Can be negative
-        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + d@A))
+        preref = -inprod(d, g)  # Can be negative
+        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + matprod(d, A)))
 
         # PREREC <= 0 or PREREF >=0 or either is NaN
         if not (prerec > 0 and preref < 0):

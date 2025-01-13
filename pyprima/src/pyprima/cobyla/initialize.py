@@ -3,6 +3,7 @@ from ..common.consts import DEBUGGING, REALMAX
 from ..common.infos import INFO_DEFAULT
 from ..common.evaluate import evaluate
 from ..common.history import savehist
+from ..common.linalg import inv
 from ..common.message import fmsg
 from ..common.selectx import savefilt
 
@@ -107,7 +108,7 @@ def initxfc(calcfc, iprint, maxfun, constr0, amat, bvec, ctol, f0, ftarget, rhob
 
     if evaluated.all():
         # Initialize SIMI to the inverse of SIM[:, :num_vars]
-        simi = np.linalg.inv(sim[:, :num_vars])
+        simi = inv(sim[:, :num_vars])
 
     #==================#
     # Calculation ends #

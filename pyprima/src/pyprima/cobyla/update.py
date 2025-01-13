@@ -1,6 +1,6 @@
 from ..common.consts import DEBUGGING
 from ..common.infos import DAMAGING_ROUNDING, INFO_DEFAULT
-from ..common.linalg import isinv
+from ..common.linalg import isinv, matprod, outprod, inprod, inv
 import numpy as np
 
 
@@ -49,23 +49,23 @@ def updatexfc(jdrop, constr, cpen, cstrv, d, f, conmat, cval, fval, sim, simi):
     simi_old = simi
     if jdrop < num_vars:
         sim[:, jdrop] = d
-        simi_jdrop = simi[jdrop, :] / np.dot(simi[jdrop, :], d)
-        simi -= np.outer(simi@d, simi_jdrop)
+        simi_jdrop = simi[jdrop, :] / inprod(simi[jdrop, :], d)
+        simi -= outprod(matprod(simi, d), simi_jdrop)
         simi[jdrop, :] = simi_jdrop
     else:  # jdrop == num_vars
         sim[:, num_vars] += d
         sim[:, :num_vars] -= np.tile(d, (num_vars, 1)).T
-        simid = simi@d
+        simid = matprod(simi, d)
         sum_simi = np.sum(simi, axis=0)
-        simi += np.outer(simid, sum_simi / (1 - sum(simid)))
+        simi += outprod(simid, sum_simi / (1 - sum(simid)))
 
     # Check whether SIMI is a poor approximation to the inverse of SIM[:, :NUM_VARS]
     # Calculate SIMI from scratch if the current one is damaged by rounding errors.
     itol = 1
-    erri = np.max(abs(simi@sim[:, :num_vars] - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
+    erri = np.max(abs(matprod(simi, sim[:, :num_vars]) - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
     if erri > 0.1 * itol or np.isnan(erri):
-        simi_test = np.linalg.inv(sim[:, :num_vars])
-        erri_test = np.max(abs(simi_test@sim[:, :num_vars] - np.eye(num_vars)))
+        simi_test = inv(sim[:, :num_vars])
+        erri_test = np.max(abs(matprod(simi_test, sim[:, :num_vars]) - np.eye(num_vars)))
         if erri_test < erri or (np.isnan(erri) and not np.isnan(erri_test)):
             simi = simi_test
             erri = erri_test
@@ -224,15 +224,22 @@ def updatepole(cpen, conmat, cval, fval, sim, simi):
         # SIMI should be updated by a multiplication with this matrix (i.e. its inverse) from the left
         # side, as is done in the following line. The JOPT-th row of the updated SIMI is minus the sum
         # of all rows of the original SIMI, whereas all the other rows remain unchanged.
+        # NDB 20250114: In testing the cutest problem 'SYNTHES2' between the Python implementation and
+        # the Fortran bindings, I saw a difference between the following for loop and the
+        # np.sum command used below. The differences were small, on the order of 1e-16, i.e. epsilon.
+        # It's not clear to me why np.sum might go in a different order than the for loop, but
+        # strange things happen with floating point arithmetic I guess.
+        # for i in range(simi.shape[1]):
+        #     simi[jopt, i] = -sum(simi[:, i])
         simi[jopt, :] = -np.sum(simi, axis=0)
 
     # Check whether SIMI is a poor approximation to the inverse of SIM[:, :NUM_VARS]
     # Calculate SIMI from scratch if the current one is damaged by rounding errors.
-    erri = np.max(abs(simi@sim[:, :num_vars] - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
+    erri = np.max(abs(matprod(simi, sim[:, :num_vars]) - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
     itol = 1
     if erri > 0.1 * itol or np.isnan(erri):
-        simi_test = np.linalg.inv(sim[:, :num_vars])
-        erri_test = np.max(abs(simi_test@sim[:, :num_vars] - np.eye(num_vars)))
+        simi_test = inv(sim[:, :num_vars])
+        erri_test = np.max(abs(matprod(simi_test, sim[:, :num_vars]) - np.eye(num_vars)))
         if erri_test < erri or (np.isnan(erri) and not np.isnan(erri_test)):
             simi = simi_test
             erri = erri_test
