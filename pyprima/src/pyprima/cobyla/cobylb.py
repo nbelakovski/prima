@@ -555,8 +555,11 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
     See the discussions around equation (9) of the COBYLA paper.
     '''
 
-    # Testing HS102 led to the discovery that fval, among others, was being passed
-    # to this function by reference, and so was being modified.
+    # Even after nealy all of the pycutest problems were showing nearly bit for bit
+    # identical results between Python and the Fortran bindings, HS102 was still off by
+    # more than machine epsilon. It turned out to be due to the fact that getcpen was
+    # modifying fval, among other. It just goes to show that even when you're nearly
+    # perfect, you can still have non trivial bugs.
     conmat = conmat.copy()
     cval = cval.copy()
     fval = fval.copy()
