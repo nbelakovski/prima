@@ -5,7 +5,7 @@ from ..common.infos import INFO_DEFAULT, MAXTR_REACHED, DAMAGING_ROUNDING, \
                     SMALL_TR_RADIUS, CALLBACK_TERMINATE
 from ..common.evaluate import evaluate
 from ..common.history import savehist
-from ..common.linalg import isinv, matprod, inprod, norm
+from ..common.linalg import isinv, matprod, inprod, norm, primasum, primapow2
 from ..common.message import fmsg, retmsg, rhomsg
 from ..common.ratio import redrat
 from ..common.redrho import redrho
@@ -191,7 +191,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
 
         # Does the interpolation set have adequate geometry? It affects improve_geo and
         # reduce_rho.
-        adequate_geo = all(np.sum(sim[:, :num_vars]**2, axis=0) <= 4 * delta**2)
+        adequate_geo = all(primasum(primapow2(sim[:, :num_vars]), axis=0) <= 4 * primapow2(delta))
 
         # Calculate the linear approximations to the objective and constraint functions.
         # N.B.: TRSTLP accesses A mostly by columns, so it is more reasonable to save A
@@ -256,11 +256,11 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # N.B.: If this happens, do NOT include X into the filter, as F and CONSTR
             # are inaccurate.
             x = sim[:, num_vars] + d
-            distsq[num_vars] = np.sum((x - sim[:, num_vars])**2)
-            distsq[:num_vars] = np.sum((x.reshape(num_vars, 1) - 
-                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars]))**2, axis=0)
+            distsq[num_vars] = primasum(primapow2(x - sim[:, num_vars]))
+            distsq[:num_vars] = primasum(primapow2(x.reshape(num_vars, 1) - 
+                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars])), axis=0)
             j = np.argmin(distsq)
-            if distsq[j] <= (1e-4 * rhoend)**2:
+            if distsq[j] <= primapow2(1e-4 * rhoend): 
                 f = fval[j]
                 constr = conmat[:, j]
                 cstrv = cval[j]
@@ -410,7 +410,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # we take another geometry step in that case? If no, why should we do it here? Indeed, this
         # distinction makes no practical difference for CUTEst problems with at most 100 variables
         # and 5000 constraints, while the algorithm framework is simplified.
-        if improve_geo and not all(np.sum(sim[:, :num_vars]**2, axis=0) <= 4 * delta**2):
+        if improve_geo and not all(primasum(primapow2(sim[:, :num_vars]), axis=0) <= 4 * primapow2(delta)):
             # Before the geometry step, updatepole has been called either implicitly by UPDATEXFC or
             # explicitly after CPEN is updated, so that SIM[:, :NUM_VARS] is the optimal vertex.
 
@@ -439,7 +439,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # reduced, leading to infinite cycling. (N.B.: Our implementation uses DELTA as the trust
             # region radius, with RHO being its lower bound. When the infinite cycling occurred in this
             # test, DELTA = RHO and it could not be reduced due to the requirement that DELTA >= RHO.)
-            jdrop_geo = np.argmax(np.sum(sim[:, :num_vars]**2, axis=0), axis=0)
+            jdrop_geo = np.argmax(primasum(primapow2(sim[:, :num_vars]), axis=0), axis=0)
 
             # Calculate the geometry step D.
             delbar = delta/2
@@ -454,11 +454,11 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # and any interpolation point is at least DELBAR, yet X may be close to them due to
             # rounding. In an experiment with single precision on 20240317, X = SIM(:, N+1) occurred.
             x = sim[:, num_vars] + d
-            distsq[num_vars] = np.sum((x - sim[:, num_vars])**2)
-            distsq[:num_vars] = np.sum((x.reshape(num_vars, 1) - 
-                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars]))**2, axis=0)
+            distsq[num_vars] = primasum(primapow2(x - sim[:, num_vars]))
+            distsq[:num_vars] = primasum(primapow2(x.reshape(num_vars, 1) - 
+                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars])), axis=0)
             j = np.argmin(distsq)
-            if distsq[j] <= (1e-4 * rhoend)**2:
+            if distsq[j] <= primapow2(1e-4 * rhoend):
                 f = fval[j]
                 constr = conmat[:, j]
                 cstrv = cval[j]
@@ -554,6 +554,14 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
     This function gets the penalty parameter CPEN so that PREREM = PREREF + CPEN * PREREC > 0.
     See the discussions around equation (9) of the COBYLA paper.
     '''
+
+    # Testing HS102 led to the discovery that fval, among others, was being passed
+    # to this function by reference, and so was being modified.
+    conmat = conmat.copy()
+    cval = cval.copy()
+    fval = fval.copy()
+    sim = sim.copy()
+    simi = simi.copy()
 
     # Intermediate variables
     A = np.zeros((np.size(sim, 0), np.size(conmat, 0)))

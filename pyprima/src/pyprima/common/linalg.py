@@ -121,16 +121,10 @@ def norm(x):
 
 
 def istril(A, tol=0):
-    if not COMPARING:
-        return np.sum(np.tril(A) - A ) <= tol
-    # TODO: Fortran does this differently, we'll have to check that
-    return np.sum(np.tril(A) - A ) <= tol
+    return primasum(np.tril(A) - A ) <= tol
 
 def istriu(A, tol=0):
-    if not COMPARING:
-        return np.sum(np.triu(A) - A ) <= tol
-    # TODO: Fortran does this differently, we'll have to check that
-    return np.sum(np.triu(A) - A ) <= tol
+    return primasum(np.triu(A) - A ) <= tol
 
 
 def inv(A):
@@ -151,6 +145,7 @@ def inv(A):
             B[i, i] = 1 / A[i, i]
             B[:i, i] = -matprod(B[:i, :i], A[:i, i]) / A[i, i]
     else:
+        assert False, "This implementation has not been vetted"
         # This is NOT the best algorithm for the inverse, but since the QR subroutine is available ...
         Q, R, P = qr(A)
         R = R.T
@@ -171,7 +166,7 @@ def qr(A):
     P = np.linspace(0, n-1, n)
 
     for j in range(n):
-        k = np.argmax(np.sum(T[j:n+1, j:m+1]**2, axis=1), axis=0)
+        k = np.argmax(primasum(primapow2(T[j:n+1, j:m+1]), axis=1), axis=0)
         if k > 0 and k <= n - j - 1:
             k += j
             P[j], P[k] = P[k], P[j]
@@ -187,6 +182,40 @@ def qr(A):
     return Q, R, P
 
 
+def primasum(x, axis=None):
+    '''
+    According to its documentation, np.sum will sometimes do partial pairwise summation.
+    For our purposes, when comparing, we want don't want to do anything fancy, and we
+    just want to add things up one at a time.
+    '''
+    if not COMPARING:
+        return np.sum(x, axis=axis)
+    if axis is None:
+        if x.ndim == 2:
+            # Sum columns first, then sum the result
+            return sum(primasum(x, axis=0))
+        else:
+            return sum(x)
+    elif axis == 0:
+        result = np.zeros(x.shape[1])
+        for i in range(x.shape[1]):
+            result[i] = sum(x[:, i])
+        return result
+    elif axis == 1:
+        result = np.zeros(x.shape[0])
+        for i in range(x.shape[0]):
+            result[i] = sum(x[i, :])
+        return result
+
+
+def primapow2(x):
+    '''
+    Believe it or now, x**2 is not always the same as x*x in Python. In Fortran they
+    appear to be identical. Here's a quick one-line to find an example on your system
+    (well, two liner after importing numpy):
+    list(filter(lambda x: x[1], [(x:=np.random.random(), x**2 - x*x != 0) for _ in range(10000)]))
+    '''
+    return x*x
 
 
 def planerot(x):
@@ -350,7 +379,7 @@ def isorth(A, tol=None):
 
     if num_vars > np.size(A, 0):
         is_orth = False
-    elif (np.isnan(np.sum(abs(A)))):
+    elif (np.isnan(primasum(abs(A)))):
         is_orth = False
     else:
         if present(tol):

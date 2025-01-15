@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from ..common.consts import DEBUGGING, REALMIN, REALMAX, EPS
 from ..common.powalg import qradd_Rdiag, qrexc_Rdiag
-from ..common.linalg import isminor, matprod, inprod, lsqr
+from ..common.linalg import isminor, matprod, inprod, lsqr, primasum
 
 
 def trstlp(A, b, delta, g):
@@ -131,7 +131,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
     # Sizes
     mcon = np.size(A, 1)
     num_vars = np.size(A, 0)
-    
+
     # Preconditions
     if DEBUGGING:
         assert num_vars >= 1
@@ -408,7 +408,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         d = (1 - frac)*d + frac * dnew
         vmultc = np.maximum(0, (1 - frac)*vmultc + frac*vmultd)
         # Break in the case of inf/nan in d or vmultc.
-        if not (np.isfinite(np.sum(abs(d))) and np.isfinite(np.sum(abs(vmultc)))):
+        if not (np.isfinite(primasum(abs(d))) and np.isfinite(primasum(abs(vmultc)))):
             d = dold  # Should we restore also iact, nact, vmultc, and z?
             break
 

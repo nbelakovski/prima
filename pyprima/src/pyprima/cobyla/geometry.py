@@ -1,5 +1,5 @@
 from ..common.consts import DEBUGGING
-from ..common.linalg import isinv, matprod, inprod, norm
+from ..common.linalg import isinv, matprod, inprod, norm, primasum, primapow2
 import numpy as np
 
 
@@ -96,13 +96,13 @@ def setdrop_tr(ximproved, d, delta, rho, sim, simi):
     # far, taking the trial point SIM[:, NUM_VARS] + D into account.
     distsq = np.zeros(np.size(sim, 1))
     if ximproved:
-        distsq[:num_vars] = np.sum((sim[:, :num_vars] - np.tile(d, (num_vars, 1)).T)**2, axis=0)
-        distsq[num_vars] = np.sum(d**2)
+        distsq[:num_vars] = primasum(primapow2(sim[:, :num_vars] - np.tile(d, (num_vars, 1)).T), axis=0)
+        distsq[num_vars] = primasum(d*d)
     else:
-        distsq[:num_vars] = np.sum(sim[:, :num_vars]**2, axis=0)
+        distsq[:num_vars] = primasum(primapow2(sim[:, :num_vars]), axis=0)
         distsq[num_vars] = 0
 
-    weight = np.maximum(1, distsq / np.maximum(rho, delta/10)**2)  # Similar to Powell's NEWUOA code.
+    weight = np.maximum(1, distsq / primapow2(np.maximum(rho, delta/10)))  # Similar to Powell's NEWUOA code.
 
     # Other possible definitions of weight. They work almost the same as the one above.
     # weight = distsq  # Similar to Powell's LINCOA code, but WRONG. See comments in LINCOA/geometry.f90.
@@ -115,7 +115,7 @@ def setdrop_tr(ximproved, d, delta, rho, sim, simi):
     # (NUM_VARS+1)th Lagrange function is 1 - sum(SIMID). [SIMID, 1 - sum(SIMID)] is the counterpart of
     # VLAG in UOBYQA and DEN in NEWUOA/BOBYQA/LINCOA.
     simid = matprod(simi, d)
-    score = weight * abs(np.array([*simid, 1 - np.sum(simid)]))
+    score = weight * abs(np.array([*simid, 1 - primasum(simid)]))
 
     # If XIMPROVED = False (D does not render a better X), set SCORE[NUM_VARS] = -1 to avoid JDROP = NUM_VARS.
     if not ximproved:
