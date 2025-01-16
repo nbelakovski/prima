@@ -1,6 +1,6 @@
 from ..common.consts import DEBUGGING
 from ..common.infos import DAMAGING_ROUNDING, INFO_DEFAULT
-from ..common.linalg import isinv
+from ..common.linalg import isinv, matprod, outprod, inprod, inv, primasum
 import numpy as np
 
 
@@ -31,7 +31,7 @@ def updatexfc(jdrop, constr, cpen, cstrv, d, f, conmat, cval, fval, sim, simi):
         assert np.size(fval) == num_vars + 1 and not any(np.isnan(fval) | np.isposinf(fval))
         assert np.size(sim, 0) == num_vars and np.size(sim, 1) == num_vars + 1
         assert np.isfinite(sim).all()
-        assert all(np.sum(abs(sim[:, :num_vars]), axis=0) > 0)
+        assert all(primasum(abs(sim[:, :num_vars]), axis=0) > 0)
         assert np.size(simi, 0) == num_vars and np.size(simi, 1) == num_vars
         assert np.isfinite(simi).all()
         assert isinv(sim[:, :num_vars], simi, itol)
@@ -49,23 +49,23 @@ def updatexfc(jdrop, constr, cpen, cstrv, d, f, conmat, cval, fval, sim, simi):
     simi_old = simi
     if jdrop < num_vars:
         sim[:, jdrop] = d
-        simi_jdrop = simi[jdrop, :] / np.dot(simi[jdrop, :], d)
-        simi -= np.outer(simi@d, simi_jdrop)
+        simi_jdrop = simi[jdrop, :] / inprod(simi[jdrop, :], d)
+        simi -= outprod(matprod(simi, d), simi_jdrop)
         simi[jdrop, :] = simi_jdrop
     else:  # jdrop == num_vars
         sim[:, num_vars] += d
         sim[:, :num_vars] -= np.tile(d, (num_vars, 1)).T
-        simid = simi@d
-        sum_simi = np.sum(simi, axis=0)
-        simi += np.outer(simid, sum_simi / (1 - sum(simid)))
+        simid = matprod(simi, d)
+        sum_simi = primasum(simi, axis=0)
+        simi += outprod(simid, sum_simi / (1 - sum(simid)))
 
     # Check whether SIMI is a poor approximation to the inverse of SIM[:, :NUM_VARS]
     # Calculate SIMI from scratch if the current one is damaged by rounding errors.
     itol = 1
-    erri = np.max(abs(simi@sim[:, :num_vars] - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
+    erri = np.max(abs(matprod(simi, sim[:, :num_vars]) - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
     if erri > 0.1 * itol or np.isnan(erri):
-        simi_test = np.linalg.inv(sim[:, :num_vars])
-        erri_test = np.max(abs(simi_test@sim[:, :num_vars] - np.eye(num_vars)))
+        simi_test = inv(sim[:, :num_vars])
+        erri_test = np.max(abs(matprod(simi_test, sim[:, :num_vars]) - np.eye(num_vars)))
         if erri_test < erri or (np.isnan(erri) and not np.isnan(erri_test)):
             simi = simi_test
             erri = erri_test
@@ -95,7 +95,7 @@ def updatexfc(jdrop, constr, cpen, cstrv, d, f, conmat, cval, fval, sim, simi):
         assert np.size(fval) == num_vars + 1 and not any(np.isnan(fval) | np.isposinf(fval))
         assert np.size(sim, 0) == num_vars and np.size(sim, 1) == num_vars + 1
         assert np.isfinite(sim).all()
-        assert all(np.sum(abs(sim[:, :num_vars]), axis=0) > 0)
+        assert all(primasum(abs(sim[:, :num_vars]), axis=0) > 0)
         assert np.size(simi, 0) == num_vars and np.size(simi, 1) == num_vars
         assert np.isfinite(simi).all()
         assert isinv(sim[:, :num_vars], simi, itol) or info == DAMAGING_ROUNDING
@@ -188,7 +188,7 @@ def updatepole(cpen, conmat, cval, fval, sim, simi):
         assert np.size(fval) == num_vars + 1 and not any(np.isnan(fval) | np.isposinf(fval))
         assert np.size(sim, 0) == num_vars and np.size(sim, 1) == num_vars + 1
         assert np.isfinite(sim).all()
-        assert all(np.sum(abs(sim[:, :num_vars]), axis=0) > 0)
+        assert all(primasum(abs(sim[:, :num_vars]), axis=0) > 0)
         assert np.size(simi, 0) == num_vars and np.size(simi, 1) == num_vars
         assert np.isfinite(simi).all()
         assert isinv(sim[:, :num_vars], simi, itol)
@@ -224,15 +224,22 @@ def updatepole(cpen, conmat, cval, fval, sim, simi):
         # SIMI should be updated by a multiplication with this matrix (i.e. its inverse) from the left
         # side, as is done in the following line. The JOPT-th row of the updated SIMI is minus the sum
         # of all rows of the original SIMI, whereas all the other rows remain unchanged.
-        simi[jopt, :] = -np.sum(simi, axis=0)
+        # NDB 20250114: In testing the cutest problem 'SYNTHES2' between the Python implementation and
+        # the Fortran bindings, I saw a difference between the following for loop and the
+        # np.sum command. The differences were small, on the order of 1e-16, i.e. epsilon.
+        # According to numpy documentation, np.sum sometimes uses partial pairwise summation,
+        # depending on the memory layout of the array and the axis specified.
+        # for i in range(simi.shape[1]):
+        #     simi[jopt, i] = -sum(simi[:, i])
+        simi[jopt, :] = -primasum(simi, axis=0)
 
     # Check whether SIMI is a poor approximation to the inverse of SIM[:, :NUM_VARS]
     # Calculate SIMI from scratch if the current one is damaged by rounding errors.
-    erri = np.max(abs(simi@sim[:, :num_vars] - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
+    erri = np.max(abs(matprod(simi, sim[:, :num_vars]) - np.eye(num_vars)))  # np.max returns NaN if any input is NaN
     itol = 1
     if erri > 0.1 * itol or np.isnan(erri):
-        simi_test = np.linalg.inv(sim[:, :num_vars])
-        erri_test = np.max(abs(simi_test@sim[:, :num_vars] - np.eye(num_vars)))
+        simi_test = inv(sim[:, :num_vars])
+        erri_test = np.max(abs(matprod(simi_test, sim[:, :num_vars]) - np.eye(num_vars)))
         if erri_test < erri or (np.isnan(erri) and not np.isnan(erri_test)):
             simi = simi_test
             erri = erri_test
@@ -263,7 +270,7 @@ def updatepole(cpen, conmat, cval, fval, sim, simi):
         assert np.size(fval) == num_vars + 1 and not any(np.isnan(fval) | np.isposinf(fval))
         assert np.size(sim, 0) == num_vars and np.size(sim, 1) == num_vars + 1
         assert np.isfinite(sim).all()
-        assert all(np.sum(abs(sim[:, :num_vars]), axis=0) > 0)
+        assert all(primasum(abs(sim[:, :num_vars]), axis=0) > 0)
         assert np.size(simi, 0) == num_vars and np.size(simi, 1) == num_vars
         assert np.isfinite(simi).all()
         # Do not check SIMI = SIM[:, :num_vars]^{-1}, as it may not be true due to damaging rounding.

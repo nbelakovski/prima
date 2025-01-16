@@ -1,6 +1,7 @@
 from pyprima import minimize
 import numpy as np
 import pytest
+import sys
 
 def obj(x):
     return (x[0] - 1)**2 + (x[1] - 2.5)**2
@@ -18,7 +19,11 @@ def test_callback_terminate():
 def test_callback_no_terminate():
     def callback(x, *args):
         pass
+    # Unfortunately this test also had some issues on different architectures, so we
+    # switch to precise math
+    sys.modules['pyprima'].common.linalg.COMPARING = True
     result = minimize(obj, obj.x0, method='cobyla', callback=callback)
+    sys.modules['pyprima'].common.linalg.COMPARING = False
     assert result.nf == 56
     assert np.allclose(result.x, obj.optimal, atol=1e-3)
 

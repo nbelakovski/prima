@@ -1,5 +1,5 @@
 import numpy as np
-from .linalg import isminor, planerot
+from .linalg import isminor, planerot, matprod, inprod, hypot
 from .consts import DEBUGGING, EPS
 
 
@@ -28,8 +28,8 @@ def qradd_Rdiag(c, Q, Rdiag, n):
 
     # As in Powell's COBYLA, CQ is set to 0 at the positions with CQ being negligible as per ISMINOR.
     # This may not be the best choice if the subroutine is used in other contexts, e.g. LINCOA.
-    cq = c @ Q
-    cqa = abs(c) @ abs(Q)
+    cq = matprod(c, Q)
+    cqa = matprod(abs(c), abs(Q))
     # The line below basically makes an element of cq 0 if adding it to the corresponding element of
     # cqa does not change the latter.
     cq = np.array([0 if isminor(cqi, cqai) else cqi for cqi, cqai in zip(cq, cqa)])
@@ -42,8 +42,8 @@ def qradd_Rdiag(c, Q, Rdiag, n):
             # Powell wrote cq[k+1] != 0 instead of abs. The two differ if cq[k+1] is NaN.
             # If we apply the rotation below when cq[k+1] = 0, then cq[k] will get updated to |cq[k]|.
             G = planerot(cq[k:k+2])
-            Q[:, [k, k+1]] = Q[:, [k, k+1]] @ G.T
-            cq[k] = np.linalg.norm(cq[k:k+2])
+            Q[:, [k, k+1]] = matprod(Q[:, [k, k+1]], G.T)
+            cq[k] = hypot(*cq[k:k+2])
 
     # Augment n by 1 if C is not in range(A)
     if n < m:
@@ -104,8 +104,8 @@ def qrexc_Rdiag(A, Q, Rdiag, i):  # Used in COBYLA
     # k+1 of Q (as well as rows k and k+1 of R). This makes sure that the entries of the update Rdiag
     # are all positive if it is the case for the original Rdiag.
     for k in range(i, n-1):
-        G = planerot([Rdiag[k+1], np.dot(Q[:, k], A[:, k+1])])
-        Q[:, [k, k+1]] = Q[:, [k+1, k]]@(G.T)
+        G = planerot([Rdiag[k+1], inprod(Q[:, k], A[:, k+1])])
+        Q[:, [k, k+1]] = matprod(Q[:, [k+1, k]], (G.T))
         # Powell's code updates Rdiag in the following way:
         # hypt = np.sqrt(Rdiag[k+1]**2 + np.dot(Q[:, k], A[:, k+1])**2)
         # Rdiag[[k, k+1]] = [hypt, (Rdiag[k+1]/hypt)*Rdiag[k]]
@@ -115,7 +115,7 @@ def qrexc_Rdiag(A, Q, Rdiag, i):  # Used in COBYLA
         # from scratch below.
 
     # Calculate Rdiag(i:n) from scratch
-    Rdiag[i:n-1] = [np.dot(Q[:, k], A[:, k+1]) for k in range(i, n-1)]
-    Rdiag[n-1] = np.dot(Q[:, n-1], A[:, i])
+    Rdiag[i:n-1] = [inprod(Q[:, k], A[:, k+1]) for k in range(i, n-1)]
+    Rdiag[n-1] = inprod(Q[:, n-1], A[:, i])
 
     return Q, Rdiag

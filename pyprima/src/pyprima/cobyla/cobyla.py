@@ -6,6 +6,7 @@ from ..common.consts import (EPS, RHOBEG_DEFAULT, RHOEND_DEFAULT, CTOL_DEFAULT,
                                    GAMMA2_DEFAULT)
 from ..common.preproc import preproc
 from ..common.present import present
+from ..common.linalg import matprod
 from .cobylb import cobylb
 import numpy as np
 from dataclasses import dataclass
@@ -331,7 +332,7 @@ def cobyla(calcfc, m_nlcon, x, Aineq=None, bineq=None, Aeq=None, beq=None,
     if (present(f0) and present(nlconstr0) and all(np.isfinite(x))):
         f = moderatef(f0)
         if amat is not None:
-          constr[:mmm - m_nlcon] = moderatec(amat@x - bvec)
+          constr[:mmm - m_nlcon] = moderatec(matprod(amat, x) - bvec)
         constr[mmm - m_nlcon:] = moderatec(nlconstr0)
     else:
         x = moderatex(x)

@@ -5,7 +5,7 @@ from ..common.infos import INFO_DEFAULT, MAXTR_REACHED, DAMAGING_ROUNDING, \
                     SMALL_TR_RADIUS, CALLBACK_TERMINATE
 from ..common.evaluate import evaluate
 from ..common.history import savehist
-from ..common.linalg import isinv
+from ..common.linalg import isinv, matprod, inprod, norm, primasum, primapow2
 from ..common.message import fmsg, retmsg, rhomsg
 from ..common.ratio import redrat
 from ..common.redrho import redrho
@@ -191,7 +191,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
 
         # Does the interpolation set have adequate geometry? It affects improve_geo and
         # reduce_rho.
-        adequate_geo = all(np.sum(sim[:, :num_vars]**2, axis=0) <= 4 * delta**2)
+        adequate_geo = all(primasum(primapow2(sim[:, :num_vars]), axis=0) <= 4 * primapow2(delta))
 
         # Calculate the linear approximations to the objective and constraint functions.
         # N.B.: TRSTLP accesses A mostly by columns, so it is more reasonable to save A
@@ -202,14 +202,14 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # the performance of COBYLA in terms of the number of function evaluations. The
         # system was solved by SOLVE in LINALG_MOD based on a QR factorization of SIM
         # (not necessarily a good algorithm). No preconditioning or scaling was used.
-        g = (fval[:num_vars] - fval[num_vars])@simi
+        g = matprod((fval[:num_vars] - fval[num_vars]), simi)
         A[:, :m_lcon] = amat.T if amat is not None else amat
-        A[:, m_lcon:] = ((conmat[m_lcon:, :num_vars] - 
-                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T)@simi).T
+        A[:, m_lcon:] = matprod((conmat[m_lcon:, :num_vars] -
+                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T), simi).T
 
         # Calculate the trust-region trial step d. Note that d does NOT depend on cpen.
         d = trstlp(A, -conmat[:, num_vars], delta, g)
-        dnorm = min(delta, np.linalg.norm(d))
+        dnorm = min(delta, norm(d))
 
         # Is the trust-region trial step short? N.B.: we compare DNORM with RHO, not
         # DELTA. Powell's code especially defines SHORTD by SHORTD = (DNORM < 0.5 *
@@ -232,8 +232,8 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # 2. PREREF may be negative or 0, but it is positive when PREREC = 0 and shortd
         # is False
         # 3. Due to 2, in theory, max(PREREC, PREREF) > 0 if shortd is False.
-        preref = -np.dot(d, g)  # Can be negative
-        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + d@A))
+        preref = -inprod(d, g)  # Can be negative
+        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + matprod(d, A)))
 
         # Evaluate PREREM, which is the predicted reduction in the merit function.
         # In theory, PREREM >= 0 and it is 0 iff CPEN = 0 = PREREF. This may not be true
@@ -256,11 +256,11 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # N.B.: If this happens, do NOT include X into the filter, as F and CONSTR
             # are inaccurate.
             x = sim[:, num_vars] + d
-            distsq[num_vars] = np.sum((x - sim[:, num_vars])**2)
-            distsq[:num_vars] = np.sum((x.reshape(num_vars, 1) - 
-                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars]))**2, axis=0)
+            distsq[num_vars] = primasum(primapow2(x - sim[:, num_vars]))
+            distsq[:num_vars] = primasum(primapow2(x.reshape(num_vars, 1) - 
+                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars])), axis=0)
             j = np.argmin(distsq)
-            if distsq[j] <= (1e-4 * rhoend)**2:
+            if distsq[j] <= primapow2(1e-4 * rhoend): 
                 f = fval[j]
                 constr = conmat[:, j]
                 cstrv = cval[j]
@@ -410,7 +410,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
         # we take another geometry step in that case? If no, why should we do it here? Indeed, this
         # distinction makes no practical difference for CUTEst problems with at most 100 variables
         # and 5000 constraints, while the algorithm framework is simplified.
-        if improve_geo and not all(np.sum(sim[:, :num_vars]**2, axis=0) <= 4 * delta**2):
+        if improve_geo and not all(primasum(primapow2(sim[:, :num_vars]), axis=0) <= 4 * primapow2(delta)):
             # Before the geometry step, updatepole has been called either implicitly by UPDATEXFC or
             # explicitly after CPEN is updated, so that SIM[:, :NUM_VARS] is the optimal vertex.
 
@@ -439,7 +439,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # reduced, leading to infinite cycling. (N.B.: Our implementation uses DELTA as the trust
             # region radius, with RHO being its lower bound. When the infinite cycling occurred in this
             # test, DELTA = RHO and it could not be reduced due to the requirement that DELTA >= RHO.)
-            jdrop_geo = np.argmax(np.sum(sim[:, :num_vars]**2, axis=0), axis=0)
+            jdrop_geo = np.argmax(primasum(primapow2(sim[:, :num_vars]), axis=0), axis=0)
 
             # Calculate the geometry step D.
             delbar = delta/2
@@ -454,11 +454,11 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
             # and any interpolation point is at least DELBAR, yet X may be close to them due to
             # rounding. In an experiment with single precision on 20240317, X = SIM(:, N+1) occurred.
             x = sim[:, num_vars] + d
-            distsq[num_vars] = np.sum((x - sim[:, num_vars])**2)
-            distsq[:num_vars] = np.sum((x.reshape(num_vars, 1) - 
-                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars]))**2, axis=0)
+            distsq[num_vars] = primasum(primapow2(x - sim[:, num_vars]))
+            distsq[:num_vars] = primasum(primapow2(x.reshape(num_vars, 1) - 
+                (sim[:, num_vars].reshape(num_vars, 1) + sim[:, :num_vars])), axis=0)
             j = np.argmin(distsq)
-            if distsq[j] <= (1e-4 * rhoend)**2:
+            if distsq[j] <= primapow2(1e-4 * rhoend):
                 f = fval[j]
                 constr = conmat[:, j]
                 cstrv = cval[j]
@@ -523,7 +523,7 @@ def cobylb(calcfc, iprint, maxfilt, maxfun, amat, bvec, ctol, cweight, eta1, eta
     x = sim[:, num_vars] + d
     if (info == SMALL_TR_RADIUS and
             shortd and
-            np.linalg.norm(x - sim[:, num_vars]) > 1.0E-3 * rhoend and
+            norm(x - sim[:, num_vars]) > 1.0E-3 * rhoend and
             nf < maxfun):
         # Zaikun 20230615: UPDATEXFC or UPDATEPOLE is not called since the last trust-region step. Hence
         # SIM[:, NUM_VARS] remains unchanged. Otherwise SIM[:, NUM_VARS] + D would not make sense.
@@ -554,6 +554,17 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
     This function gets the penalty parameter CPEN so that PREREM = PREREF + CPEN * PREREC > 0.
     See the discussions around equation (9) of the COBYLA paper.
     '''
+
+    # Even after nearly all of the pycutest problems were showing nearly bit for bit
+    # identical results between Python and the Fortran bindings, HS102 was still off by
+    # more than machine epsilon. It turned out to be due to the fact that getcpen was
+    # modifying fval, among other. It just goes to show that even when you're nearly
+    # perfect, you can still have non trivial bugs.
+    conmat = conmat.copy()
+    cval = cval.copy()
+    fval = fval.copy()
+    sim = sim.copy()
+    simi = simi.copy()
 
     # Intermediate variables
     A = np.zeros((np.size(sim, 0), np.size(conmat, 0)))
@@ -613,18 +624,18 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
             break
 
         # Calculate the linear approximations to the objective and constraint functions.
-        g = (fval[:num_vars] - fval[num_vars])@simi
+        g = matprod(fval[:num_vars] - fval[num_vars], simi)
         A[:, :m_lcon] = amat.T if amat is not None else amat
-        A[:, m_lcon:] = ((conmat[m_lcon:, :num_vars] - 
-                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T)@simi).T
+        A[:, m_lcon:] = matprod((conmat[m_lcon:, :num_vars] -
+                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T), simi).T
 
         # Calculate the trust-region trial step D. Note that D does NOT depend on CPEN.
         d = trstlp(A, -conmat[:, num_vars], delta, g)
 
         # Predict the change to F (PREREF) and to the constraint violation (PREREC) due
         # to D.
-        preref = -np.dot(d, g)  # Can be negative
-        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + d@A))
+        preref = -inprod(d, g)  # Can be negative
+        prerec = cval[num_vars] - np.max(np.append(0, conmat[:, num_vars] + matprod(d, A)))
 
         # PREREC <= 0 or PREREF >=0 or either is NaN
         if not (prerec > 0 and preref < 0):

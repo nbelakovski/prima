@@ -1,5 +1,6 @@
 import numpy as np
 from .consts import FUNCMAX, CONSTRMAX, REALMAX, DEBUGGING
+from .linalg import matprod, primasum
 
 # This is a module evaluating the objective/constraint function with Nan/Inf handling.
 
@@ -58,12 +59,12 @@ def evaluate(calcfc, x, m_nlcon, amat, bvec):
 
     constr = np.zeros(m_lcon + m_nlcon)
     if amat is not None:
-        constr[:m_lcon] = amat @ x - bvec
+        constr[:m_lcon] = matprod(x, amat.T) - bvec
 
     if any(np.isnan(x)):
         # Although this should not happen unless there is a bug, we include this case
         # for robustness.
-        f = np.sum(x)
+        f = primasum(x)
         constr = np.ones(m_nlcon) * f
     else:
         f, constr[m_lcon:] = calcfc(moderatex(x))

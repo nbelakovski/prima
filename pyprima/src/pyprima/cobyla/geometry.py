@@ -1,5 +1,5 @@
 from ..common.consts import DEBUGGING
-from ..common.linalg import isinv
+from ..common.linalg import isinv, matprod, inprod, norm, primasum, primapow2
 import numpy as np
 
 
@@ -96,13 +96,13 @@ def setdrop_tr(ximproved, d, delta, rho, sim, simi):
     # far, taking the trial point SIM[:, NUM_VARS] + D into account.
     distsq = np.zeros(np.size(sim, 1))
     if ximproved:
-        distsq[:num_vars] = np.sum((sim[:, :num_vars] - np.tile(d, (num_vars, 1)).T)**2, axis=0)
-        distsq[num_vars] = np.sum(d**2)
+        distsq[:num_vars] = primasum(primapow2(sim[:, :num_vars] - np.tile(d, (num_vars, 1)).T), axis=0)
+        distsq[num_vars] = primasum(d*d)
     else:
-        distsq[:num_vars] = np.sum(sim[:, :num_vars]**2, axis=0)
+        distsq[:num_vars] = primasum(primapow2(sim[:, :num_vars]), axis=0)
         distsq[num_vars] = 0
 
-    weight = np.maximum(1, distsq / np.maximum(rho, delta/10)**2)  # Similar to Powell's NEWUOA code.
+    weight = np.maximum(1, distsq / primapow2(np.maximum(rho, delta/10)))  # Similar to Powell's NEWUOA code.
 
     # Other possible definitions of weight. They work almost the same as the one above.
     # weight = distsq  # Similar to Powell's LINCOA code, but WRONG. See comments in LINCOA/geometry.f90.
@@ -114,8 +114,8 @@ def setdrop_tr(ximproved, d, delta, rho, sim, simi):
     # If 0 <= j < NUM_VARS, SIMID[j] is the value of the jth Lagrange function at D; the value of the
     # (NUM_VARS+1)th Lagrange function is 1 - sum(SIMID). [SIMID, 1 - sum(SIMID)] is the counterpart of
     # VLAG in UOBYQA and DEN in NEWUOA/BOBYQA/LINCOA.
-    simid = simi@d
-    score = weight * abs(np.array([*simid, 1 - np.sum(simid)]))
+    simid = matprod(simi, d)
+    score = weight * abs(np.array([*simid, 1 - primasum(simid)]))
 
     # If XIMPROVED = False (D does not render a better X), set SCORE[NUM_VARS] = -1 to avoid JDROP = NUM_VARS.
     if not ximproved:
@@ -184,7 +184,7 @@ def geostep(jdrop, amat, bvec, conmat, cpen, cval, delbar, fval, simi):
     # SIMI[JDROP, :] is a vector perpendicular to the face of the simplex to the opposite of vertex
     # JDROP. Set D to the vector in this direction and with length DELBAR.
     d = simi[jdrop, :]
-    d = delbar * (d / np.linalg.norm(d))
+    d = delbar * (d / norm(d))
 
     # The code below chooses the direction of D according to an approximation of the merit function.
     # See (17) of the COBYLA paper and  line 225 of Powell's cobylb.f.
@@ -192,15 +192,15 @@ def geostep(jdrop, amat, bvec, conmat, cpen, cval, delbar, fval, simi):
     # Calculate the coefficients of the linear approximations to the objective and constraint functions.
     # N.B.: CONMAT and SIMI have been updated after the last trust-region step, but G and A have not.
     # So we cannot pass G and A from outside.
-    g = (fval[:num_vars] - fval[num_vars])@simi
+    g = matprod(fval[:num_vars] - fval[num_vars], simi)
     A = np.zeros((num_vars, num_constraints))
     A[:, :m_lcon] = amat.T if amat is not None else amat
-    A[:, m_lcon:] = ((conmat[m_lcon:, :num_vars] - 
-                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T)@simi).T
+    A[:, m_lcon:] = matprod((conmat[m_lcon:, :num_vars] -
+                          np.tile(conmat[m_lcon:, num_vars], (num_vars, 1)).T), simi).T
     # CVPD and CVND are the predicted constraint violation of D and -D by the linear models.
-    cvpd = np.max(np.append(0, conmat[:, num_vars] + d@A))
-    cvnd = np.max(np.append(0, conmat[:, num_vars] - d@A))
-    if -np.dot(d, g) + cpen * cvnd < np.dot(d, g) + cpen * cvpd:
+    cvpd = np.max(np.append(0, conmat[:, num_vars] + matprod(d, A)))
+    cvnd = np.max(np.append(0, conmat[:, num_vars] - matprod(d, A)))
+    if -inprod(d, g) + cpen * cvnd < inprod(d, g) + cpen * cvpd:
         d *= -1
 
     #==================#

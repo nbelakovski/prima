@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from ..common.consts import DEBUGGING, REALMIN, REALMAX, EPS
 from ..common.powalg import qradd_Rdiag, qrexc_Rdiag
-from ..common.linalg import isminor
+from ..common.linalg import isminor, matprod, inprod, lsqr, primasum
 
 
 def trstlp(A, b, delta, g):
@@ -131,7 +131,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
     # Sizes
     mcon = np.size(A, 1)
     num_vars = np.size(A, 0)
-    
+
     # Preconditions
     if DEBUGGING:
         assert num_vars >= 1
@@ -169,7 +169,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         num_constraints = mcon
         sdirn = np.zeros(len(d))
     else:
-        if np.dot(d, d) >= delta**2:
+        if inprod(d, d) >= delta*delta:
             # Check whether a quick return is possible.
             return iact, nact, d, vmultc, z
         
@@ -180,8 +180,8 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
 
         # In Powell's code, stage 2 uses the zdota and cviol calculated by stage1. Here we recalculate
         # them so that they need not be passed from stage 1 to 2, and hence the coupling is reduced.
-        cviol = np.max(np.append(0, d@A[:, :num_constraints] - b[:num_constraints]))
-    zdota[:nact] = [np.dot(z[:, k], A[:, iact[k]]) for k in range(nact)]
+        cviol = np.max(np.append(0, matprod(d, A[:, :num_constraints]) - b[:num_constraints]))
+    zdota[:nact] = [inprod(z[:, k], A[:, iact[k]]) for k in range(nact)]
 
     # More initialization
     optold = REALMAX
@@ -201,7 +201,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         if stage == 1:
             optnew = cviol
         else:
-            optnew = np.dot(d, A[:, mcon-1])
+            optnew = inprod(d, A[:, mcon-1])
         
         # End the current stage of the calculation if 3 consecutive iterations have either failed to
         # reduce the best calculated value of the objective function or to increase the number of active
@@ -240,7 +240,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
                 # same before and after QRADD). Therefore if we supply ZDOTA to LSQR (as Rdiag) as
                 # Powell did, we should use the UNUPDATED version, namely ZDASAV.
                 # vmultd[:nact] = lsqr(A[:, iact[:nact]], A[:, iact[icon]], z[:, :nact], zdasav[:nact])
-                vmultd[:nact] = np.linalg.lstsq(A[:, iact[:nact]], A[:, iact[icon]], rcond=None)[0]
+                vmultd[:nact] = lsqr(A[:, iact[:nact]], A[:, iact[icon]], z[:, :nact], zdasav[:nact])
                 if not any(np.logical_and(vmultd[:nact] > 0, iact[:nact] <= num_constraints)):
                     # N.B.: This can be triggered by NACT == 0 (among other possibilities)! This is
                     # important, because NACT will be used as an index in the sequel.
@@ -291,7 +291,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
             # Usually during stage 1 the vector sdirn gives a search direction that reduces all the
             # active constraint violations by one simultaneously.
             if stage == 1:
-                sdirn -= ((np.dot(sdirn, A[:, iact[nact-1]]) + 1)/zdota[nact-1])*z[:, nact-1]
+                sdirn -= ((inprod(sdirn, A[:, iact[nact-1]]) + 1)/zdota[nact-1])*z[:, nact-1]
             else:
                 sdirn = -1/zdota[nact-1]*z[:, nact-1]
         else:  # icon < nact
@@ -321,7 +321,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
 
             # Set sdirn to the direction of the next change to the current vector of variables.
             if stage == 1:
-                sdirn -= np.dot(sdirn, z[:, nact]) * z[:, nact]
+                sdirn -= inprod(sdirn, z[:, nact]) * z[:, nact]
                 # sdirn is orthogonal to z[:, nact+1]
             else:
                 sdirn = -1/zdota[nact-1] * z[:, nact-1]
@@ -332,13 +332,13 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         # The following calculation of step is adopted from NEWUOA/BOBYQA/LINCOA. It seems to improve
         # the performance of COBYLA. We also found that removing the precaution about underflows is
         # beneficial to the overall performance of COBYLA --- the underflows are harmless anyway.
-        dd = delta**2 - np.dot(d, d)
-        ss = np.dot(sdirn, sdirn)
-        sd = np.dot(sdirn, d)
-        if dd <= 0 or ss <= EPS * delta**2 or np.isnan(sd):
+        dd = delta*delta - inprod(d, d)
+        ss = inprod(sdirn, sdirn)
+        sd = inprod(sdirn, d)
+        if dd <= 0 or ss <= EPS * delta*delta or np.isnan(sd):
             break
         # sqrtd: square root of a discriminant. The max avoids sqrtd < abs(sd) due to underflow
-        sqrtd = max(np.sqrt(ss*dd + sd**2), abs(sd), np.sqrt(ss * dd))
+        sqrtd = max(np.sqrt(ss*dd + sd*sd), abs(sd), np.sqrt(ss * dd))
         if sd > 0:
             step = dd / (sqrtd + sd)
         else:
@@ -356,14 +356,14 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         # precision). Further, we skip the step if it could be 0 within
         # a reasonable tolerance for computer rounding errors.
 
-        #  !dd = delta**2 - sum(d**2, mask=(abs(d) >= EPS * delta))
+        #  !dd = delta*delta - sum(d**2, mask=(abs(d) >= EPS * delta))
         #  !ss = inprod(sdirn, sdirn)
         #  !if (dd  <= 0) then
         #  !    exit
         #  !end if
         #  !sd = inprod(sdirn, d)
         #  !if (abs(sd) >= EPS * sqrt(ss * dd)) then
-        #  !    step = dd / (sqrt(ss * dd + sd**2) + sd)
+        #  !    step = dd / (sqrt(ss * dd + sd*sd) + sd)
         #  !else
         #  !    step = dd / (sqrt(ss * dd) + sd)
         #  !end if
@@ -378,7 +378,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         # maximum residual if stage 1 is being done
         dnew = d + step * sdirn
         if stage == 1:
-            cviol = np.max(np.append(0, dnew@A[:, iact[:nact]] - b[iact[:nact]]))
+            cviol = np.max(np.append(0, matprod(dnew, A[:, iact[:nact]]) - b[iact[:nact]]))
             # N.B.: cviol will be used when calculating vmultd[nact+1:mcon].
 
         # Zaikun 20211011:
@@ -388,13 +388,12 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         # Set vmultd to the vmultc vector that would occur if d became dnew. A device is included to
         # force multd[k] = 0 if deviations from this value can be attributed to computer rounding
         # errors. First calculate the new Lagrange multipliers.
-        # vmultd[:nact] = lsqr(A[:, iact[:nact]], dnew, z[:, :nact], zdota[:nact])
-        vmultd[:nact] = -np.linalg.lstsq(A[:, iact[:nact]], dnew, rcond=None)[0]
+        vmultd[:nact] = -lsqr(A[:, iact[:nact]], dnew, z[:, :nact], zdota[:nact])
         if stage == 2:
             vmultd[nact-1] = max(0, vmultd[nact-1])  # This seems never activated.
         # Complete vmultd by finding the new constraint residuals. (Powell wrote "Complete vmultc ...")
-        cvshift = cviol - (dnew@A[:, iact] - b[iact])  # Only cvshift[nact+1:mcon] is needed
-        cvsabs = abs(dnew)@abs(A[:, iact]) + abs(b[iact]) + cviol
+        cvshift = cviol - (matprod(dnew, A[:, iact]) - b[iact])  # Only cvshift[nact+1:mcon] is needed
+        cvsabs = matprod(abs(dnew), abs(A[:, iact])) + abs(b[iact]) + cviol
         cvshift[isminor(cvshift, cvsabs)] = 0
         vmultd[nact:mcon] = cvshift[nact:mcon]
 
@@ -409,7 +408,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
         d = (1 - frac)*d + frac * dnew
         vmultc = np.maximum(0, (1 - frac)*vmultc + frac*vmultd)
         # Break in the case of inf/nan in d or vmultc.
-        if not (np.isfinite(np.sum(abs(d))) and np.isfinite(np.sum(abs(vmultc)))):
+        if not (np.isfinite(primasum(abs(d))) and np.isfinite(primasum(abs(vmultc)))):
             d = dold  # Should we restore also iact, nact, vmultc, and z?
             break
 
@@ -417,7 +416,7 @@ def trstlp_sub(iact: npt.NDArray, nact: int, stage, A, b, delta, d, vmultc, z):
             # cviol = (1 - frac) * cvold + frac * cviol  # Powell's version
             # In theory, cviol = np.max(np.append(d@A - b, 0)), yet the
             # cviol updated as above can be quite different from this value if A has huge entries (e.g., > 1e20)
-            cviol = np.max(np.append(0, d@A - b))
+            cviol = np.max(np.append(0, matprod(d, A) - b))
 
         if icon < 0 or icon >= mcon:
             # In Powell's code, the condition is icon == 0. Indeed, icon < 0 cannot hold unless
