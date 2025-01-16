@@ -44,8 +44,11 @@ jobs:
 
 
       - name: Store artifacts
-        uses: actions/upload-artifact@v3.1.2
+        uses: actions/upload-artifact@v4
         id: artifact-coverage
         with:
-          name: coverage-html
+          name: coverage-html-${{ matrix.os }}
           path: pyprima/htmlcov/*
+
+      - name: Output artifact ID
+        run:  echo 'Artifact ID is ${{ steps.artifact-coverage.outputs.artifact-id }}'
