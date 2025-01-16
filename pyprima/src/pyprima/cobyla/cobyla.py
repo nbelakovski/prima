@@ -10,6 +10,7 @@ from ..common.linalg import matprod
 from .cobylb import cobylb
 import numpy as np
 from dataclasses import dataclass
+from copy import copy
 
 
 @dataclass
@@ -307,10 +308,12 @@ def cobyla(calcfc, m_nlcon, x, Aineq=None, bineq=None, Aeq=None, beq=None,
     # Read the inputs.
 
     if xl is not None:
+      xl = copy(xl)
       xl[np.isnan(xl)] = -BOUNDMAX
       xl[xl < -BOUNDMAX] = -BOUNDMAX
 
     if xu is not None:
+      xu = copy(xu)
       xu[np.isnan(xu)] = BOUNDMAX
       xu[xu > BOUNDMAX] = BOUNDMAX
 

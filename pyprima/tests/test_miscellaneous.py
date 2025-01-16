@@ -1,7 +1,8 @@
-from pyprima import minimize
+from pyprima import minimize, NonlinearConstraint
+from pyprima.common.infos import CALLBACK_TERMINATE, SMALL_TR_RADIUS
 import numpy as np
 import pytest
-import sys
+import platform
 
 def obj(x):
     return (x[0] - 1)**2 + (x[1] - 2.5)**2
@@ -9,23 +10,22 @@ obj.x0 = np.array([5, 5])
 obj.optimal = np.array([1, 2.5])
 
 
-def test_callback_terminate():
+def test_callback_terminate(minimize_with_debugging):
     def callback(x, *args):
         return True
-    result = minimize(obj, obj.x0, method='cobyla', callback=callback)
+    result = minimize_with_debugging(obj, obj.x0, method='cobyla', callback=callback)
     assert result.nf == 4
+    assert result.info == CALLBACK_TERMINATE
 
 
 def test_callback_no_terminate():
     def callback(x, *args):
         pass
-    # Unfortunately this test also had some issues on different architectures, so we
-    # switch to precise math
-    sys.modules['pyprima'].common.linalg.COMPARING = True
     result = minimize(obj, obj.x0, method='cobyla', callback=callback)
-    sys.modules['pyprima'].common.linalg.COMPARING = False
-    assert result.nf == 56
+    # I'm not sure why but ubuntu finishes the problem with 2 fewer function evaluations :shrug:
+    assert result.nf == 54 if platform.system() == 'Linux' else 56
     assert np.allclose(result.x, obj.optimal, atol=1e-3)
+    assert result.info == SMALL_TR_RADIUS
 
 
 def test_rhoend_without_rhobeg():
@@ -57,3 +57,14 @@ def test_eta1_without_eta2_and_eta1_out_of_range():
 def test_iprint(iprint):
     result = minimize(obj, obj.x0, method='cobyla', options={'iprint': iprint})
     assert np.allclose(result.x, obj.optimal, atol=1e-3)
+
+
+def test_minimize_constraint_violation():
+        # We set up conflicting constraints so that the algorithm will be
+        # guaranteed to end up with maxcv > 0.
+        cons = [NonlinearConstraint(lambda x: x - 4, -np.inf, 0),
+                NonlinearConstraint(lambda x: 5 - x, -np.inf, 0)]
+        result = minimize(lambda x: x[0], np.array([0]), method='cobyla', constraints=cons,
+                       )
+        assert result.cstrv > 0.1
+        assert result.info == SMALL_TR_RADIUS

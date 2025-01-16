@@ -2297,3 +2297,4 @@ primasum
 primapow
 autouse
 SYNTHES
+pytestmark

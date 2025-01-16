@@ -1,5 +1,6 @@
 import pytest
-pytest.importorskip("pycutest")
+# This exists mainly for those CI tests in which cutest/pycutest/optiprofiler are not installed.
+optiprofiler = pytest.importorskip("optiprofiler", exc_type=ImportError)
 
 from optiprofiler.problems import load_cutest_problem
 from pyprima import minimize, Bounds, LinearConstraint, NonlinearConstraint
@@ -49,6 +50,7 @@ def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf)
     assert result.nf == expected_nf
 
 
+@pytest.mark.order(2)  # This test takes the second longest
 def test_errinbar():
     # Expected values are just obtained from running the problem and collecting the results
     # If future changes improve the algorithm, these values may need to be updated.
@@ -207,6 +209,7 @@ def test_mgh10ls():
     run_problem('MGH10LS', expected_x, expected_f, expected_constraints, expected_nf)
 
 
+@pytest.mark.order(1)  # This test takes the longest
 def test_tenbars1():
     expected_x = np.array([
          1.9568934516948072542e+03,  3.3869509993142941084e+02,
