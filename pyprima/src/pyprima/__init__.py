@@ -150,6 +150,10 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
     if 'quiet' in options:
         del options['quiet']
 
+    if 'maxfev' in options:
+        options['maxfun'] = options['maxfev']
+        del options['maxfev']
+
     return cobyla(
         calcfc,
         len(nlconstr0),
