@@ -39,7 +39,8 @@ jobs:
         shell: bash
         run: |
             cd pyprima
-            python -m pip install .
+            # Need editable mode for coverage to work correctly
+            python -m pip install --editable .
             pytest --cov=src --cov-report=html tests/
 
 
