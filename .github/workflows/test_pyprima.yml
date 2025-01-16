@@ -51,5 +51,5 @@ jobs:
           name: coverage-html-${{ matrix.os }}
           path: pyprima/htmlcov/*
 
-      - name: Output artifact ID
-        run:  echo 'Artifact ID is ${{ steps.artifact-coverage.outputs.artifact-id }}'
+      - name: Output artifact URL
+        run:  echo 'Artifact URL is https://github.com/nbelakovski/prima/actions/runs/${{ github.run_id }}/artifacts/${{ steps.artifact-coverage.outputs.artifact-id }}'

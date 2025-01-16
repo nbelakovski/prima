@@ -1,6 +1,10 @@
 import pytest
 # This exists mainly for those CI tests in which cutest is not installed.
-pycutest = pytest.importorskip("pycutest", exc_type=ImportError)
+try:
+    pycutest = pytest.importorskip("pycutest", exc_type=ImportError)
+except RuntimeError:
+    # Oddly, on macOS CI, importorskip raises a RuntimeError instead of an ImportError :sad:
+    pytestmark = pytest.mark.skip("Could not import pycutest")
 
 from optiprofiler.problems import load_cutest_problem
 from pyprima import minimize, Bounds, LinearConstraint, NonlinearConstraint
