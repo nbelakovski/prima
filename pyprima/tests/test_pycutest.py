@@ -18,7 +18,7 @@ try:
     load_cutest_problem('ERRINBAR')
 except ProblemError:
     # This try/except exists mainly for those CI tests in which cutest is not installed.
-    pytestmark = pytest.mark.skip(reason="Pycuteset is installed but does not have the CUTEst problems")
+    pytestmark = pytest.mark.skip(reason="pycutest is installed but does not have the CUTEst problems")
 
 
 @pytest.fixture(autouse=True, scope='module')
