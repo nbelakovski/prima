@@ -555,7 +555,7 @@ def getcpen(amat, bvec, conmat, cpen, cval, delta, fval, rho, sim, simi):
     See the discussions around equation (9) of the COBYLA paper.
     '''
 
-    # Even after nealy all of the pycutest problems were showing nearly bit for bit
+    # Even after nearly all of the pycutest problems were showing nearly bit for bit
     # identical results between Python and the Fortran bindings, HS102 was still off by
     # more than machine epsilon. It turned out to be due to the fact that getcpen was
     # modifying fval, among other. It just goes to show that even when you're nearly

@@ -2293,3 +2293,7 @@ nanargmax
 tenbars
 tfi
 pyprima
+primasum
+primapow
+autouse
+SYNTHES
