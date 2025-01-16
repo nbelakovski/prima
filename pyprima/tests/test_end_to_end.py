@@ -18,11 +18,11 @@ def test_end_to_end_bounds():
     assert np.allclose(result.x, np.array([1, 10]), atol=1e-3)
 
 
-def test_end_to_end_linear_constraints():
+def test_end_to_end_linear_constraints(minimize_with_debugging):
     # x1 + x2 = 5
     A = np.array([[1, 1]])
     b = np.array([5])
-    result = minimize(obj, obj.x0, method='cobyla', constraints=[LinearConstraint(A, b, b)])
+    result = minimize_with_debugging(obj, obj.x0, method='cobyla', constraints=[LinearConstraint(A, b, b)])
     assert np.allclose(result.x, np.array([1.75, 3.25]), atol=1e-3)
     assert np.allclose(A @ result.x, b, atol=1e-3)
 

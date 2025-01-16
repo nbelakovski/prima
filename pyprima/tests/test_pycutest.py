@@ -1,9 +1,8 @@
-import pytest
-pytest.importorskip("pycutest")
-
 from optiprofiler.problems import load_cutest_problem
+from optiprofiler.utils import ProblemError
 from pyprima import minimize, Bounds, LinearConstraint, NonlinearConstraint
 import numpy as np
+import pytest
 import sys
 
 
@@ -13,6 +12,13 @@ the implementation and also cover some cases not covered by the naive tests in
 test_end_to_end.py. The list is semi-arbitrary, some of these helped to fine bugs
 when testing the Python implementation against the Fortran one.
 '''
+
+
+try:
+    load_cutest_problem('ERRINBAR')
+except ProblemError:
+    # This try/except exists mainly for those CI tests in which cutest is not installed.
+    pytestmark = pytest.mark.skip(reason="Pycuteset is installed but does not have the CUTEst problems")
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -49,6 +55,7 @@ def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf)
     assert result.nf == expected_nf
 
 
+@pytest.mark.order(2)  # This test takes the second longest
 def test_errinbar():
     # Expected values are just obtained from running the problem and collecting the results
     # If future changes improve the algorithm, these values may need to be updated.
@@ -207,6 +214,7 @@ def test_mgh10ls():
     run_problem('MGH10LS', expected_x, expected_f, expected_constraints, expected_nf)
 
 
+@pytest.mark.order(1)  # This test takes the longest
 def test_tenbars1():
     expected_x = np.array([
          1.9568934516948072542e+03,  3.3869509993142941084e+02,
