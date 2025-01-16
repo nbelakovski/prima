@@ -1,5 +1,4 @@
 numpy
-optiprofiler
 pycutest
 pytest
 pytest-cov

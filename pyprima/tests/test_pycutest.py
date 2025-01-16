@@ -1,8 +1,10 @@
+import pytest
+# This exists mainly for those CI tests in which cutest is not installed.
+pycutest = pytest.importorskip("pycutest", exc_type=ImportError)
+
 from optiprofiler.problems import load_cutest_problem
-from optiprofiler.utils import ProblemError
 from pyprima import minimize, Bounds, LinearConstraint, NonlinearConstraint
 import numpy as np
-import pytest
 import sys
 
 
@@ -12,13 +14,6 @@ the implementation and also cover some cases not covered by the naive tests in
 test_end_to_end.py. The list is semi-arbitrary, some of these helped to fine bugs
 when testing the Python implementation against the Fortran one.
 '''
-
-
-try:
-    load_cutest_problem('ERRINBAR')
-except ProblemError:
-    # This try/except exists mainly for those CI tests in which cutest is not installed.
-    pytestmark = pytest.mark.skip(reason="pycutest is installed but does not have the CUTEst problems")
 
 
 @pytest.fixture(autouse=True, scope='module')
