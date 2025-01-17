@@ -45,7 +45,7 @@ def get_info_string(solver, info):
         reason = 'the callback function requested termination'
     else:
         reason = 'UNKNOWN EXIT FLAG'
-    ret_message = f'\nReturn from {solver} because {reason.strip()}'
+    ret_message = f'Return from {solver} because {reason.strip()}'
     return ret_message
 
 
