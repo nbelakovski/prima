@@ -2298,3 +2298,6 @@ primapow
 autouse
 SYNTHES
 pytestmark
+misra
+polak
+loadgroup

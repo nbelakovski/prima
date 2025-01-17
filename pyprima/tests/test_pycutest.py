@@ -39,18 +39,19 @@ def get_constraints(problem):
     return constraints
 
 
-def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf):
+def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf, options=None):
     problem = load_cutest_problem(name)
     constraints = get_constraints(problem)
     bounds = Bounds(problem.lb, problem.ub)
-    result = minimize(problem.fun, problem.x0, method='cobyla', constraints=constraints, bounds=bounds)
+    result = minimize(problem.fun, problem.x0, method='cobyla', constraints=constraints, bounds=bounds, options=options)
     assert np.allclose(result.x, expected_x, atol=1e-15)
     assert np.isclose(result.f, expected_f, atol=1e-15)
     assert np.allclose(result.constr, expected_constraints, atol=1e-15)
     assert result.nf == expected_nf
 
 
-@pytest.mark.order(2)  # This test takes the second longest
+@pytest.mark.order(2)  # This test takes the second longest.
+@pytest.mark.xdist_group(name="errinbar")  # Need to use with --dist loadgroup at command line
 def test_errinbar():
     # Expected values are just obtained from running the problem and collecting the results
     # If future changes improve the algorithm, these values may need to be updated.
@@ -210,6 +211,7 @@ def test_mgh10ls():
 
 
 @pytest.mark.order(1)  # This test takes the longest
+@pytest.mark.xdist_group(name="tenbars1")  # Separate group to make sure it gets a separate worker
 def test_tenbars1():
     expected_x = np.array([
          1.9568934516948072542e+03,  3.3869509993142941084e+02,
@@ -338,3 +340,34 @@ def test_hs102():
     ])
     expected_nf = 3500
     run_problem('HS102', expected_x, expected_f, expected_constraints, expected_nf)
+
+
+def test_misra1als():
+    # This test uncovered an issue with moderatef. We had been clipping incorrectly.
+    expected_x = np.array([5.0105555094407225E+002, 2.4181408013565766E-004])
+    expected_f = 1.9594518355352196E+001
+    expected_constraints = np.array([])
+    expected_nf = 39
+    run_problem('MISRA1ALS', expected_x, expected_f, expected_constraints, expected_nf)
+
+
+def test_polak3():
+    # This one, with these particular options, actually triggered the logic for taking
+    # the inverse of a non-triangular matrix. It happened via updatexfc, when the error
+    # between SIM and SIMI was too large.
+    expected_x = np.array([1.0000000000000000E+000, 1.0000000000000000E+000, 1.0000000000000000E+000,
+        1.0000000000000000E+000, 1.0000000000000000E+000, 1.0000000000000000E+000,
+        1.0000000000000000E+000, 1.0000000000000000E+000, 1.0000000000000000E+000,
+        1.0000000000000000E+000, 1.0000000000000000E+000, 3.7182800000000000E+000])
+    expected_f = 3.71828
+    expected_constraints = np.array([1.7673936794898822E+001, 4.2552779271657478E+001, 3.3334527708058324E+001,
+        6.8251421914926908E+001, 1.6633544068845666E+001, 2.8929015570937477E+001,
+        1.6062115937829471E+001, 4.1328621950812334E+001, 2.8671452438715288E+001,
+        7.1375489109225455E+001])
+    expected_nf = 3252
+    options = {
+        'maxfev' : 271*len(expected_x),
+        'rhobeg' : 2.71828,
+        'rhoend' : 3.14e-4,
+    }
+    run_problem('POLAK3', expected_x, expected_f, expected_constraints, expected_nf, options)
