@@ -51,7 +51,7 @@ def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf,
 
 
 @pytest.mark.order(2)  # This test takes the second longest.
-@pytest.mark.xdist_group(name="errinbar")  # Need to use with with --dist loadground at command line
+@pytest.mark.xdist_group(name="errinbar")  # Need to use with --dist loadgroup at command line
 def test_errinbar():
     # Expected values are just obtained from running the problem and collecting the results
     # If future changes improve the algorithm, these values may need to be updated.
@@ -353,7 +353,7 @@ def test_misra1als():
 
 def test_polak3():
     # This one, with these particular options, actually triggered the logic for taking
-    # the inverse of a nontriangular matrix. It happened via updatexfc, when the error
+    # the inverse of a non-triangular matrix. It happened via updatexfc, when the error
     # between SIM and SIMI was too large.
     expected_x = np.array([1.0000000000000000E+000, 1.0000000000000000E+000, 1.0000000000000000E+000,
         1.0000000000000000E+000, 1.0000000000000000E+000, 1.0000000000000000E+000,
