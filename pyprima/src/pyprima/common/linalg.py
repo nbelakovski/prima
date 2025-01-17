@@ -121,15 +121,16 @@ def norm(x):
 
 
 def istril(A, tol=0):
-    return primasum(np.tril(A) - A ) <= tol
+    return primasum(abs(A) - np.tril(abs(A))) <= tol
 
 def istriu(A, tol=0):
-    return primasum(np.triu(A) - A ) <= tol
+    return primasum(abs(A) - np.triu(abs(A))) <= tol
 
 
 def inv(A):
     if not COMPARING:
         return np.linalg.inv(A)
+    A = A.copy()
     n = A.shape[0]
     if istril(A):
         # This case is invoked in COBYLA.
@@ -145,14 +146,14 @@ def inv(A):
             B[i, i] = 1 / A[i, i]
             B[:i, i] = -matprod(B[:i, :i], A[:i, i]) / A[i, i]
     else:
-        assert False, "This implementation has not been vetted"
         # This is NOT the best algorithm for the inverse, but since the QR subroutine is available ...
         Q, R, P = qr(A)
         R = R.T
+        B = np.zeros((n, n))
         for i in range(n - 1, -1, -1):
             B[:, i] = (Q[:, i] - matprod(B[:, i + 1:n], R[i + 1:n, i])) / R[i, i]
-        InvP = np.zeros(n)
-        InvP[P] = np.linspace(0, n - 1, n)
+        InvP = np.zeros(n, dtype=int)
+        InvP[P] = np.linspace(0, n-1, n)
         B = B[:, InvP].T
     return B
     
@@ -163,7 +164,7 @@ def qr(A):
 
     Q = np.eye(m)
     T = A.T
-    P = np.linspace(0, n-1, n)
+    P = np.linspace(0, n-1, n, dtype=int)
 
     for j in range(n):
         k = np.argmax(primasum(primapow2(T[j:n+1, j:m+1]), axis=1), axis=0)
@@ -171,10 +172,10 @@ def qr(A):
             k += j
             P[j], P[k] = P[k], P[j]
             T[[j, k], :] = T[[k, j], :]
-        for i in range(m-1, j-1, -1):
+        for i in range(m-1, j, -1):
             G = planerot(T[j, [j, i]]).T
             T[j, [j, i]] = np.append(hypot(T[j, j], T[j, i]), 0)
-            T[j + 1:n, [j, i]] = matprod(T[j + 1:n, [j, i]], G)
+            T[j + 1:n + 1, [j, i]] = matprod(T[j + 1:n + 1, [j, i]], G)
             Q[:, [j, i]] = matprod(Q[:, [j, i]], G)
 
     R = T.T
