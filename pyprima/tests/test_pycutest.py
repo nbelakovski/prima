@@ -50,7 +50,8 @@ def run_problem(name, expected_x, expected_f, expected_constraints, expected_nf,
     assert result.nf == expected_nf
 
 
-@pytest.mark.order(2)  # This test takes the second longest
+@pytest.mark.order(2)  # This test takes the second longest.
+@pytest.mark.xdist_group(name="errinbar")  # Need to use with with --dist loadground at command line
 def test_errinbar():
     # Expected values are just obtained from running the problem and collecting the results
     # If future changes improve the algorithm, these values may need to be updated.
@@ -210,6 +211,7 @@ def test_mgh10ls():
 
 
 @pytest.mark.order(1)  # This test takes the longest
+@pytest.mark.xdist_group(name="tenbars1")  # Separate group to make sure it gets a separate worker
 def test_tenbars1():
     expected_x = np.array([
          1.9568934516948072542e+03,  3.3869509993142941084e+02,
