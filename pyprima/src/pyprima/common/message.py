@@ -41,6 +41,8 @@ def get_info_string(solver, info):
         reason = 'there is no space between the lower and upper bounds of variable.'
     elif info == ZERO_LINEAR_CONSTRAINT:
         reason = 'one of the linear constraints has a zero gradient'
+    elif info == CALLBACK_TERMINATE:
+        reason = 'the callback function requested termination'
     else:
         reason = 'UNKNOWN EXIT FLAG'
     ret_message = f'\nReturn from {solver} because {reason.strip()}'
