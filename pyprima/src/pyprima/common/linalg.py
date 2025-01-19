@@ -3,18 +3,20 @@ from .consts import DEBUGGING, EPS, REALMAX, REALMIN
 from .present import present
 
 
-# Functions like inprod, matprod, etc. are for comparing the Python implementation
-# with the Fortran implementation. When Fortran is compiled in debug mode and Python
-# is using these manual matrix multiplication functions, most of the differences in
-# floating point calculations between Python and Fortran should be minimized, although
-# not all of them. This is helpful when translating the Fortran code to Python,
-# but once all the algorithms are translated I don't think these functions need to
-# remain.
-COMPARING = False
+# We use naive implementations of matrix multiplication and other routines for two
+# reasons:
+# 1. When Fortran is compiled in debug mode, and Python is using these routines, we
+#    can get bit for bit identical results as compared to Fortran. This is helpful
+#    for comparing the two implementations. It will be particularly helpful when porting
+#    the other implementations like LINCOA, etc.
+# 2. On some problems this algorithm is very sensitive to errors in finite precision
+#    arithmetic. Switching to naive implementation will slow down the algorithm, but
+#    may be more stable.
+USE_NAIVE_MATH = False
 
 
 def inprod(x, y):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.dot(x, y)
     result = 0
     for i in range(len(x)):
@@ -45,7 +47,7 @@ def matprod22(x, y):
 
 
 def matprod(x, y):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return x@y
     if len(x.shape) == 1 and len(y.shape) == 1:
         return inprod(x, y)
@@ -60,7 +62,7 @@ def matprod(x, y):
 
 
 def outprod(x, y):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.outer(x, y)
     result = np.zeros((len(x), len(y)))
     for i in range(len(x)):
@@ -69,7 +71,7 @@ def outprod(x, y):
 
 
 def lsqr(A, b, Q, Rdiag):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.linalg.lstsq(A, b, rcond=None)[0]
 
     m = A.shape[0]
@@ -92,7 +94,7 @@ def lsqr(A, b, Q, Rdiag):
 
 
 def hypot(x1, x2):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.hypot(x1, x2)
     if not np.isfinite(x1):
         r = abs(x1)
@@ -111,7 +113,7 @@ def hypot(x1, x2):
 
 
 def norm(x):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.linalg.norm(x)
     # NOTE: Avoid np.pow! And exponentiation in general!
     # It appears that in Fortran, x*x and x**2 are the same, but in Python they are not!
@@ -128,7 +130,7 @@ def istriu(A, tol=0):
 
 
 def inv(A):
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.linalg.inv(A)
     A = A.copy()
     n = A.shape[0]
@@ -189,7 +191,7 @@ def primasum(x, axis=None):
     For our purposes, when comparing, we want don't want to do anything fancy, and we
     just want to add things up one at a time.
     '''
-    if not COMPARING:
+    if not USE_NAIVE_MATH:
         return np.sum(x, axis=axis)
     if axis is None:
         if x.ndim == 2:

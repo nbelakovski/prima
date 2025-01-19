@@ -6,7 +6,7 @@ import sys
 def minimize_with_debugging():
     # This is a hack to force us to use DEBUGGING for a test, so that we get
     # code coverage. We definitely don't want to do this for the pycutest tests,
-    # they are slow enough with COMPARING set to True.
+    # they are slow enough with USE_NAIVE_MATH set to True.
     os.environ['PRIMA_DEBUGGING'] = "True"
     if 'pyprima' in sys.modules:
         modules_to_delete = [m for m in sys.modules if 'pyprima' in m]
