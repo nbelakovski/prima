@@ -15,10 +15,15 @@ def transform_constraint_function(nlc):
         
         # Upgrade the lower/upper bounds to vectors if necessary
         lb = nlc.lb
-        if not hasattr(lb, '__len__'):
+        try:
+            _ = len(lb)
+        except TypeError:
             lb = np.array([nlc.lb]*len(values), dtype=np.float64)
+
         ub = nlc.ub
-        if not hasattr(ub, '__len__'):
+        try:
+            _ = len(ub)
+        except TypeError:
             ub = np.array([nlc.ub]*len(values), dtype=np.float64)
         
         
