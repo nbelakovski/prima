@@ -12,7 +12,7 @@ from .present import present
 # 2. On some problems this algorithm is very sensitive to errors in finite precision
 #    arithmetic. Switching to naive implementation will slow down the algorithm, but
 #    may be more stable.
-USE_NAIVE_MATH = False
+USE_NAIVE_MATH = True
 
 
 def inprod(x, y):
