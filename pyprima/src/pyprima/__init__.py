@@ -11,6 +11,7 @@ from .common._project import _project
 from .common.linalg import get_arrays_tol
 from .cobyla.cobyla import cobyla
 import numpy as np
+from collections.abc import Iterable
 
 
 class ConstraintType(Enum):
@@ -30,7 +31,7 @@ def get_constraint_type(constraint):
     elif hasattr(constraint, "fun") and hasattr(constraint, "lb") and hasattr(constraint, "ub"):
         return ConstraintType.NONLINEAR_OBJECT
     else:
-        raise ValueError("Constraint type not recognized")
+        raise ValueError(f"Constraint type {type(constraint)} not recognized")
 
 
 def process_constraints(constraints):
@@ -40,7 +41,7 @@ def process_constraints(constraints):
     # Next figure out if it's a list of constraints or a single constraint
     # If it's a single constraint, make it a list, and then the remaining logic
     # doesn't have to change
-    if not isinstance(constraints, list):
+    if not isinstance(constraints, Iterable):
         constraints = [constraints]
 
     # Separate out the linear and nonlinear constraints
