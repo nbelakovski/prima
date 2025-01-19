@@ -68,3 +68,8 @@ def test_minimize_constraint_violation():
                        )
         assert result.cstrv > 0.1
         assert result.info == SMALL_TR_RADIUS
+
+
+def test_scalar():
+    result = minimize(lambda x: x**2, 5, method='cobyla')
+    assert np.allclose(result.x, 0, atol=1e-3)

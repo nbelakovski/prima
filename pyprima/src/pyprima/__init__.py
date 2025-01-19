@@ -8,6 +8,7 @@ from .common._linear_constraints import (
 from .common._bounds import process_bounds
 from enum import Enum
 from .common._project import _project
+from .common.linalg import get_arrays_tol
 from .cobyla.cobyla import cobyla
 import numpy as np
 
@@ -106,23 +107,55 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         if method not in ("cobyla", "bobyqa", "lincoa") and bounds is not None:
             raise ValueError("Bounds were provided for an algorithm that cannot handle them")
 
+    # Try to get the length of x0. If we can't that likely means it's a scalar, and
+    # in that case we turn it into an array and wrap the original function so that it
+    # can accept an array and return a scalar.
     try:
         lenx0 = len(x0)
-        x0_is_scalar = False
     except TypeError:
+        x0 = np.array([x0])
+        original_scalar_fun = fun
+        def scalar_fun(x):
+            return original_scalar_fun(x[0], *args)
+        fun = scalar_fun
         lenx0 = 1
-        x0_is_scalar = True
 
     lb, ub = process_bounds(bounds, lenx0)
+
+    # Check which variables are fixed and eliminate them from the problem.
+    # Save the indices and values so that we can call the original function with
+    # an array of the appropriate size, and so that we can add the fixed values to the
+    # result when COBYLA returns.
+    tol = get_arrays_tol(lb, ub)
+    _fixed_idx = (
+        (lb <= ub)
+        & (np.abs(lb - ub) < tol)
+    )
+    if any(_fixed_idx):
+        _fixed_values = 0.5 * (
+            lb[_fixed_idx] + ub[_fixed_idx]
+        )
+        _fixed_values = np.clip(
+            _fixed_values,
+            lb[_fixed_idx],
+            ub[_fixed_idx],
+        )
+        x0 = x0[~_fixed_idx]
+        lb = lb[~_fixed_idx]
+        ub = ub[~_fixed_idx]
+        original_fun = fun
+        def fixed_fun(x):
+            newx = np.zeros(lenx0)
+            newx[_fixed_idx] = _fixed_values
+            newx[~_fixed_idx] = x
+            return original_fun(newx, *args)
+        fun = fixed_fun
+
 
     # Project x0 onto the feasible set
     if nonlinear_constraint_function is None:
         result = _project(x0, lb, ub, {"linear": linear_constraint, "nonlinear": None})
         x0 = result.x
-        # _project will upgrade x0 to a 1D array if it was a scalar, but the objective function
-        # might expect a scalar, so we downgrade it back to a scalar if that's what it was originally
-        if x0_is_scalar:
-            x0 = x0[0]
     
     if linear_constraint is not None:
         A_eq, b_eq, A_ineq, b_ineq = separate_LC_into_eq_and_ineq(linear_constraint)
@@ -144,7 +177,7 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
             f = fun(x, *args)
             constr = np.zeros(0)
             return f, constr
-        
+
     f0, nlconstr0 = calcfc(x0)
 
     if 'quiet' in options:
@@ -154,7 +187,7 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         options['maxfun'] = options['maxfev']
         del options['maxfev']
 
-    return cobyla(
+    result = cobyla(
         calcfc,
         len(nlconstr0),
         x0,
@@ -169,3 +202,10 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         callback=callback,
         **options
     )
+
+    if any(_fixed_idx):
+        newx = np.zeros(lenx0)
+        newx[_fixed_idx] = _fixed_values
+        newx[~_fixed_idx] = result.x
+        result.x = newx
+    return result
