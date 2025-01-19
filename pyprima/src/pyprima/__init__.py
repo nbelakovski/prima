@@ -107,7 +107,7 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         if method not in ("cobyla", "bobyqa", "lincoa") and bounds is not None:
             raise ValueError("Bounds were provided for an algorithm that cannot handle them")
 
-    # Try to get the the length of x0. If we can't that likely means it's a scalar, and
+    # Try to get the length of x0. If we can't that likely means it's a scalar, and
     # in that case we turn it into an array and wrap the original function so that it
     # can accept an array and return a scalar.
     try:
@@ -124,7 +124,7 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
 
     # Check which variables are fixed and eliminate them from the problem.
     # Save the indices and values so that we can call the original function with
-    # an array of the approriate size, and so that we can add the fixed values to the
+    # an array of the appropriate size, and so that we can add the fixed values to the
     # result when COBYLA returns.
     tol = get_arrays_tol(lb, ub)
     _fixed_idx = (
