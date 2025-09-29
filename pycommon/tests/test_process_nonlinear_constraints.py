@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
 try:
-    from prima import NonlinearConstraint, process_nl_constraints
+    from prima import NonlinearConstraint
+    from prima.pycommon.nonlinear_constraints import process_nl_constraints
 except ModuleNotFoundError:
     try:
-        from pyprima import NonlinearConstraint, process_nl_constraints
+        from pyprima import NonlinearConstraint
+        from pyprima.pycommon.nonlinear_constraints import process_nl_constraints
     except ModuleNotFoundError:
         pytest.fail(reason="Could not find either prima or pyprima libraries")
 

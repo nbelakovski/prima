@@ -1,9 +1,11 @@
 import numpy as np
 try:
-    from prima import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq, minimize
+    from prima import LinearConstraint, minimize
+    from prima.pycommon.linear_constraints import combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq
 except ModuleNotFoundError:
     try:
-        from pyprima import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq, minimize
+        from pyprima import LinearConstraint, minimize
+        from pyprima.pycommon.linear_constraints import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq
     except ModuleNotFoundError:
         pytest.fail(reason="Could not find either prima or pyprima libraries")
 from objective import fun
