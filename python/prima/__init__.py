@@ -7,17 +7,10 @@ from ._linear_constraints import (
     separate_LC_into_eq_and_ineq,
 )
 from ._bounds import process_bounds
-from enum import Enum
 import numpy as np
 from ._common import _project
 from ._common import get_arrays_tol
-
-
-class ConstraintType(Enum):
-    LINEAR_OBJECT = 5
-    NONLINEAR_OBJECT = 10
-    LINEAR_DICT = 15
-    NONLINEAR_DICT = 20
+from .pycommon.constraints import ConstraintType
 
 
 def get_constraint_type(constraint):

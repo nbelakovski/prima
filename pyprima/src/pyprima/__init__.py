@@ -6,19 +6,12 @@ from .common._linear_constraints import (
     separate_LC_into_eq_and_ineq,
 )
 from .common._bounds import process_bounds
-from enum import Enum
 from .common._project import _project
 from .common.linalg import get_arrays_tol
 from .cobyla.cobyla import cobyla
 import numpy as np
 from collections.abc import Iterable
-
-
-class ConstraintType(Enum):
-    LINEAR_OBJECT = 5
-    NONLINEAR_OBJECT = 10
-    LINEAR_DICT = 15
-    NONLINEAR_DICT = 20
+from .pycommon.constraints import ConstraintType
 
 
 def get_constraint_type(constraint):
