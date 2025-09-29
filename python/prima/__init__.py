@@ -10,20 +10,7 @@ from ._bounds import process_bounds
 import numpy as np
 from ._common import _project
 from ._common import get_arrays_tol
-from .pycommon.constraints import ConstraintType
-
-
-def get_constraint_type(constraint):
-    if isinstance(constraint, dict) and ("A" in constraint) and ("lb" in constraint) and ("ub" in constraint):
-        return ConstraintType.LINEAR_DICT
-    elif isinstance(constraint, dict) and ("fun" in constraint) and ("lb" in constraint) and ("ub" in constraint):
-        return ConstraintType.NONLINEAR_DICT
-    elif hasattr(constraint, "A") and hasattr(constraint, "lb") and hasattr(constraint, "ub"):
-        return ConstraintType.LINEAR_OBJECT
-    elif hasattr(constraint, "fun") and hasattr(constraint, "lb") and hasattr(constraint, "ub"):
-        return ConstraintType.NONLINEAR_OBJECT
-    else:
-        raise ValueError("Constraint type not recognized")
+from .pycommon.constraints import ConstraintType, get_constraint_type
 
 
 def process_constraints(constraints):
