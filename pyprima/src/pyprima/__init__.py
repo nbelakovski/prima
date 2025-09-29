@@ -1,6 +1,5 @@
 # Bounds may appear unused in this file but we need to import it to make it available to the user
 from scipy.optimize import NonlinearConstraint, LinearConstraint, Bounds
-from .common._nonlinear_constraints import process_nl_constraints
 from .common._linear_constraints import (
     combine_multiple_linear_constraints,
     separate_LC_into_eq_and_ineq,
@@ -12,6 +11,7 @@ from .cobyla.cobyla import cobyla
 import numpy as np
 from collections.abc import Iterable
 from .pycommon.constraints import ConstraintType, get_constraint_type
+from .pycommon.nonlinear_constraints import process_nl_constraints
 
 
 def process_constraints(constraints):

@@ -1,6 +1,12 @@
 import numpy as np
-from prima import NonlinearConstraint, process_nl_constraints, minimize
 import pytest
+try:
+    from prima import NonlinearConstraint, process_nl_constraints
+except ModuleNotFoundError:
+    try:
+        from pyprima import NonlinearConstraint, process_nl_constraints
+    except ModuleNotFoundError:
+        pytest.fail(reason="Could not find either prima or pyprima libraries")
 
 
 @pytest.mark.parametrize("lb1", (-np.inf, [-np.inf], np.array([-np.inf])))
