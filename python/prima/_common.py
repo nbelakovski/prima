@@ -1,5 +1,5 @@
 import numpy as np
-from ._linear_constraints import LinearConstraint
+from .pycommon.linear_constraints import LinearConstraint
 from scipy.optimize import OptimizeResult
 
 # All the accepted scalar types; np.generic correspond to all NumPy types.

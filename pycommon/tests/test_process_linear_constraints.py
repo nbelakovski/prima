@@ -1,5 +1,11 @@
 import numpy as np
-from prima import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq, minimize
+try:
+    from prima import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq, minimize
+except ModuleNotFoundError:
+    try:
+        from pyprima import LinearConstraint, combine_multiple_linear_constraints, separate_LC_into_eq_and_ineq, minimize
+    except ModuleNotFoundError:
+        pytest.fail(reason="Could not find either prima or pyprima libraries")
 from objective import fun
 
 
@@ -19,7 +25,12 @@ def test_multiple_linear_constraints_high_level():
     res = minimize(fun, x0, constraints=constraints)
     assert np.isclose(res.x[0], 5.0, rtol=1e-6)
     assert np.isclose(res.x[1], 6.0, rtol=1e-6)
-    assert np.isclose(res.fun, 4.0, rtol=1e-6)
+    if hasattr(res, 'fun'):
+        assert np.isclose(res.fun, 4.0, rtol=1e-6)
+    elif hasattr(res, 'f'):
+        assert np.isclose(res.f, 4.0, rtol=1e-6)
+    else:
+        raise Exception("Result has no attribute for function value")
 
 
 def test_separate_LC_into_eq_and_ineq():
