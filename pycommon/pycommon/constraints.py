@@ -33,7 +33,7 @@ def process_constraints(constraints):
     # Next figure out if it's a list of constraints or a single constraint
     # If it's a single constraint, make it a list, and then the remaining logic
     # doesn't have to change
-    if not isinstance(constraints, list):
+    if not isinstance(constraints, list | tuple):
         constraints = [constraints]
 
     # Separate out the linear and nonlinear constraints

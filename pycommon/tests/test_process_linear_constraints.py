@@ -33,6 +33,21 @@ def test_multiple_linear_constraints_high_level():
         assert np.isclose(res.f, 4.0, rtol=1e-6)
     else:
         raise Exception("Result has no attribute for function value")
+    
+
+def test_multiple_linear_constraints_high_level_tuple():
+    constraints = (LinearConstraint(A=np.array([1, 0]), lb=5, ub=7),
+                     LinearConstraint(A=np.array([0, 1]), lb=6, ub=8))
+    x0 = [0.0, 0.0]
+    res = minimize(fun, x0, constraints=constraints)
+    assert np.isclose(res.x[0], 5.0, rtol=1e-6)
+    assert np.isclose(res.x[1], 6.0, rtol=1e-6)
+    if hasattr(res, 'fun'):
+        assert np.isclose(res.fun, 4.0, rtol=1e-6)
+    elif hasattr(res, 'f'):
+        assert np.isclose(res.f, 4.0, rtol=1e-6)
+    else:
+        raise Exception("Result has no attribute for function value")
 
 
 def test_separate_LC_into_eq_and_ineq():
