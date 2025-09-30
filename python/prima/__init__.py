@@ -3,10 +3,10 @@ from ._prima import minimize as _minimize, __version__, PRIMAMessage
 from scipy.optimize import NonlinearConstraint, LinearConstraint, Bounds
 import numpy as np
 from ._common import _project
-from ._common import get_arrays_tol
 from .pycommon.bounds import process_bounds
 from .pycommon.constraints import process_constraints
 from .pycommon.linear_constraints import separate_LC_into_eq_and_ineq
+from .pycommon.linalg import get_arrays_tol
 
 
 def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callback=None, options=None):
