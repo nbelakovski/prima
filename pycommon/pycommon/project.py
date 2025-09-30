@@ -1,5 +1,5 @@
 import numpy as np
-from .pycommon.linear_constraints import LinearConstraint
+from .linear_constraints import LinearConstraint
 from scipy.optimize import OptimizeResult
 
 # All the accepted scalar types; np.generic correspond to all NumPy types.
@@ -33,10 +33,8 @@ def _project(x0, lb, ub, constraints):
 
     Authors
     -------
-    Tom M. RAGONNEAU (tom.ragonneau@polyu.edu.hk)
-    and Zaikun ZHANG (zaikun.zhang@polyu.edu.hk)
-    Department of Applied Mathematics,
-    The Hong Kong Polytechnic University.
+    Tom M. RAGONNEAU (ragonneau.github.io)
+    and Zaikun ZHANG (www.zhangzk.net)
 
     Dedicated to the late Professor M. J. D. Powell FRS (1936--2015).
     """

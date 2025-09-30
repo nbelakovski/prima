@@ -1,12 +1,12 @@
 # Bounds may appear unused in this file but we need to import it to make it available to the user
 from scipy.optimize import NonlinearConstraint, LinearConstraint, Bounds
-from .common._project import _project
 from .cobyla.cobyla import cobyla
 import numpy as np
 from .pycommon.bounds import process_bounds
 from .pycommon.constraints import process_constraints
 from .pycommon.linear_constraints import separate_LC_into_eq_and_ineq
 from .pycommon.linalg import get_arrays_tol
+from .pycommon.project import _project
 
 
 def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callback=None, options=None):
