@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0  # Get tags for use with git describe
 
       - name: Checkout pybind11 submodule
-        run: git submodule update --init python/pybind11
+        run: git submodule update --init python/bindings/pybind11
 
       - name: Set the MACOSX_DEPLOYMENT_TARGET
         if: ${{ runner.os == 'macOS' }}
