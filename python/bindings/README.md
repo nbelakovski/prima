@@ -13,7 +13,7 @@ If you prefer, the first two commands can be replaced by running `pipx run build
 
 From here you might want to run the tests and generate coverage locally. Assuming you have `coverage` and `pytest` installed you would do the following:
 
-`coverage --branch --source=prima,$(git rev-parse --show-toplevel) -m pytest --capture=no /path/to/python/tests`
+`coverage --branch --source=prima,$(git rev-parse --show-toplevel) -m pytest --capture=no /path/to/python/bindings/tests`
 
 Explanation:
 - `--branch` checks to make sure we're hitting all of the possible cases in if/elseif/else statements

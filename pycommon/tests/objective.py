@@ -1,1 +1,0 @@
-../../python/examples/objective.py
