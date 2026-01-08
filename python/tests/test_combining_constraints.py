@@ -7,7 +7,7 @@ def test_providing_linear_and_nonlinear_constraints():
     nlc = prima_NLC(lambda x: x[0]**2, lb=[25], ub=[100])
     lc = prima_LC(np.array([1,1]), lb=10, ub=15)
     x0 = [0, 0]
-    res = prima_minimize(fun, x0, constraints=[nlc, lc])
+    res = prima_minimize(fun, x0, constraints=[nlc, lc], options={'fortran': False})
     assert np.isclose(res.x[0], 5.5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.x[1], 4.5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.fun, 0.5, atol=1e-6, rtol=1e-6)

@@ -1,6 +1,5 @@
-from ._prima import minimize as _minimize, __version__, PRIMAMessage, PRIMAResult
 # Bounds may appear unused in this file but we need to import it to make it available to the user
-from scipy.optimize import NonlinearConstraint, LinearConstraint, Bounds
+from scipy.optimize import NonlinearConstraint, LinearConstraint, Bounds, OptimizeResult
 from ._nonlinear_constraints import process_nl_constraints
 from ._linear_constraints import (
     combine_multiple_linear_constraints,
@@ -12,6 +11,16 @@ import numpy as np
 from ._common import _project
 from ._common import get_arrays_tol
 from .infos import FIXED_SUCCESS
+from .pyprima.cobyla.cobyla import cobyla
+
+# TODO: Set __version__ without going to the bindings
+
+class PRIMAMessage(Enum):
+    # See prima_message_t in prima.h
+    NONE = 0
+    EXIT = 1
+    RHO = 2
+    FEVL = 3
 
 
 class ConstraintType(Enum):
@@ -77,6 +86,46 @@ def process_constraints(constraints):
 
 
 def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callback=None, options=None):
+    '''
+    Minimize a scalar function of one or more variables using the appropriate method from
+    the PRIMA package. Method selection is as follows:
+
+    No constraints: NEWUOA
+    Bounds constraints only: BOBYQA
+    Linear constraints (and optionally bounds constraints): LINCOA
+    Nonlinear constraints (and optionally linear and/or bounds constraints): COBYLA
+
+    The method may be overridden by specifying the "method" keyword argument. For
+    unconstrained problems there is another algorithm available, UOBYQA, which can only
+    be selected by the user.
+
+    TODO: Flesh this section out. Perhaps using PDFO as example/inspiration.
+
+
+    Options
+    -------
+    rhobeg : float
+        Reasonable initial changes to the variables.
+    tol : float
+        Final accuracy in the optimization (not precisely guaranteed).
+        This is a lower bound on the size of the trust region.
+    iprint : int
+        Controls the frequency of output:
+            0. (default) There will be no printing
+            1. A message will be printed to the screen at the end of iteration, showing
+               the best vector of variables found and its objective function value
+            2. in addition to 1, each new value of RHO is printed to the screen,
+               with the best vector of variables so far and its objective function
+               value.
+            3. in addition to 2, each function evaluation with its variables will
+               be printed to the screen.
+    maxfev : int
+        Maximum number of function evaluations.
+    ctol : float
+        Tolerance (absolute) for constraint violations
+    ftarget : float
+        Stop if the objective function is less than `f_target`.
+    '''
 
     linear_constraint, nonlinear_constraint_function = process_constraints(constraints)
 
@@ -215,33 +264,99 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         maxcv = max(max((A_ineq @ x) - b_ineq) if A_ineq is not None else 0,
                     max((abs((A_eq @ x) - b_eq))) if A_eq is not None else 0,
                     max(np.append(0, nlconstr)))
-        result = PRIMAResult()
-        result.x = x
-        result.success = success
-        result.status = status
-        result.message = message
-        result.fun = fun
-        result.nfev = nfev
-        result.maxcv = maxcv
-        result.nlconstr = nlconstr
-        result.method = method
+        result = OptimizeResult(
+            x = x,
+            success = success,
+            status = status,
+            message = message,
+            fun = fun,
+            nfev = nfev,
+            maxcv = maxcv,
+            nlconstr = nlconstr,
+            method = method
+        )
         return result
 
-    result = _minimize(
-        fun,
-        x0,
-        args,
-        method,
-        lb,
-        ub,
-        A_eq,
-        b_eq,
-        A_ineq,
-        b_ineq,
-        nonlinear_constraint_function,
-        callback,
-        options
-    )
+    try:
+        from ._prima import minimize as _minimize
+    except ImportError:
+        print("Whoops, can't find _prima!")
+        options['fortran'] = False
+
+    # Perhaps instead of defaulting to try, the default setting should be
+    # set by the try/except on the import above?
+    if options.get('fortran', True):
+        result = _minimize(
+            fun,
+            x0,
+            args,
+            method,
+            lb,
+            ub,
+            A_eq,
+            b_eq,
+            A_ineq,
+            b_ineq,
+            nonlinear_constraint_function,
+            callback,
+            options
+        )
+        result = OptimizeResult(
+            x = result.x,
+            success = result.success,
+            status = result.status,
+            message = result.message,
+            fun = result.fun,
+            nfev = result.nfev,
+            maxcv = result.maxcv,
+            nlconstr = result.nlconstr,
+            method = result.method,
+        )
+    else:
+        # TODO: Suppose someone provides an unconstrained problem and either selects
+        # 'fortran': False, or doesn't have the bindings, should we change the method
+        # to COBLYA?
+        # TODO: Is an assert here OK? I would think so since it would be more likely
+        # to fire at the very start of program execution, rather than in the middle,
+        # since I don't expect
+        assert method.lower().strip() == 'cobyla', 'Only COBLYA is supported by the pure Python implementation at this time.'
+        # call COBYLA from pyprima
+        print(options)
+        def calcfc(x):
+            f = fun(x, *args)
+            if nonlinear_constraint_function is not None:
+                nlconstr = nonlinear_constraint_function(x)
+            else:
+                nlconstr = np.zeros(0)
+            return f, nlconstr
+        del options['fortran']
+        del options['m_nlcon']
+        result = cobyla(
+            calcfc,
+            len(nlconstr0),
+            x0,
+            A_ineq,
+            b_ineq,
+            A_eq,
+            b_eq,
+            lb,
+            ub,
+            # f0=f0,
+            # nlconstr0=nlconstr0,
+            callback=callback,
+            **options
+        )
+        result = OptimizeResult(
+            x = result.x,
+            success = result.info == 0,  # TODO: No magic numbers
+            status = result.info,
+            # message = result.message,
+            fun = result.f,
+            nfev = result.nf,
+            maxcv = result.cstrv,
+            nlconstr = result.constr,
+            method = method,
+        )
 
     if any(_fixed_idx):
         newx = np.zeros(lenx0) + np.nan

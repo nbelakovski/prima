@@ -29,8 +29,6 @@ class SelfCleaningPyObject {
 };
 
 struct PRIMAResult {
-    // Blank constructor for construction from Python
-    PRIMAResult() {}
     // Construct PRIMAResult from prima_result_t
     PRIMAResult(const prima_result_t& result, const int num_vars, const int num_constraints, const std::string method)  :
     x(num_vars, result.x),
@@ -91,7 +89,6 @@ PYBIND11_MODULE(_prima, m) {
 #endif
 
     py::class_<PRIMAResult>(m, "PRIMAResult")
-      .def(py::init<>())
       .def_readwrite("x", &PRIMAResult::x)
       .def_readwrite("success", &PRIMAResult::success)
       .def_readwrite("status", &PRIMAResult::status)
@@ -102,13 +99,6 @@ PYBIND11_MODULE(_prima, m) {
       .def_readwrite("nlconstr", &PRIMAResult::nlconstr)
       .def_readwrite("method", &PRIMAResult::method)
       .def("__repr__", &PRIMAResult::repr);
-
-    py::enum_<prima_message_t>(m, "PRIMAMessage")
-      .value("NONE", PRIMA_MSG_NONE)
-      .value("EXIT", PRIMA_MSG_EXIT)
-      .value("RHO", PRIMA_MSG_RHO)
-      .value("FEVL", PRIMA_MSG_FEVL)
-      .export_values();
 
 
     m.def("minimize", [](const py::function& python_objective_function,
