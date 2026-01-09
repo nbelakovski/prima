@@ -12,6 +12,7 @@ from ._common import _project
 from ._common import get_arrays_tol
 from .infos import FIXED_SUCCESS
 from .pyprima.cobyla.cobyla import cobyla
+from warnings import warn
 
 # TODO: Set __version__ without going to the bindings
 
@@ -233,19 +234,6 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
     else:
         A_eq, b_eq, A_ineq, b_ineq = None, None, None, None
 
-    if nonlinear_constraint_function is not None and not all(_fixed_idx):
-        # If there is a nonlinear constraint function, we will call COBYLA, which needs the number of nonlinear
-        # constraints (m_nlcon). In order to get this number we need to evaluate the constraint function at x0.
-        # The constraint value at x0 (nlconstr0) is not discarded but passed down to the Fortran backend, as its
-        # evaluation is assumed to be expensive. We also evaluate the objective function at x0 and pass the result
-        # (f0) down to the Fortran backend, which expects nlconstr0 and f0 to be provided in sync.
-
-        f0 = fun(x0, *args)
-        nlconstr0 = nonlinear_constraint_function(x0)
-        options['f0'] = f0
-        options['nlconstr0'] = nlconstr0
-        options['m_nlcon'] = len(nlconstr0)
-
     if all(_fixed_idx):
         x = 0.5 * (
             lb[_fixed_idx] + ub[_fixed_idx]
@@ -277,15 +265,40 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
         )
         return result
 
-    try:
-        from ._prima import minimize as _minimize
-    except ImportError:
-        print("Whoops, can't find _prima!")
+    if nonlinear_constraint_function is not None:
+        # If there is a nonlinear constraint function, we will call COBYLA, which needs the number of nonlinear
+        # constraints (m_nlcon). In order to get this number we need to evaluate the constraint function at x0.
+        # The constraint value at x0 (nlconstr0) is not discarded but passed down to the backend, as its
+        # evaluation is assumed to be expensive. We also evaluate the objective function at x0 and pass the result
+        # (f0) down to the backend, which expects nlconstr0 and f0 to be provided in sync.
+
+        f0 = fun(x0, *args)
+        nlconstr0 = nonlinear_constraint_function(x0)
+        m_nlcon = len(nlconstr0)
+    else:
+        f0 = None
+        nlconstr0 = None
+        m_nlcon = 0
+
+    user_requested_fortran = options.get('fortran') is True
+    default_to_fortran = options.get('fortran') is None
+    if user_requested_fortran or default_to_fortran:
+        try:
+            from ._prima import minimize as _minimize
+            options['fortran'] = True
+        except ImportError:
+            if user_requested_fortran:
+                warn(f"options['fortran'] = True but the Fortran bindings are not available. options['fortran'] is reset to False. ")
+            options['fortran'] = False
+    else:
         options['fortran'] = False
 
-    # Perhaps instead of defaulting to try, the default setting should be
-    # set by the try/except on the import above?
-    if options.get('fortran', True):
+
+    if options['fortran']:
+        if m_nlcon > 0:
+            options['f0'] = f0
+            options['nlconstr0'] = nlconstr0
+            options['m_nlcon'] = m_nlcon
         result = _minimize(
             fun,
             x0,
@@ -313,15 +326,10 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
             method = result.method,
         )
     else:
-        # TODO: Suppose someone provides an unconstrained problem and either selects
-        # 'fortran': False, or doesn't have the bindings, should we change the method
-        # to COBLYA?
-        # TODO: Is an assert here OK? I would think so since it would be more likely
-        # to fire at the very start of program execution, rather than in the middle,
-        # since I don't expect
-        assert method.lower().strip() == 'cobyla', 'Only COBLYA is supported by the pure Python implementation at this time.'
-        # call COBYLA from pyprima
-        print(options)
+        if method.lower().strip() != 'cobyla':
+            warn('The pure Python implementation only supports COBYLA at this time. '
+                 f'The method is switched from {method} to COBYLA.')
+            method = 'cobyla'
         def calcfc(x):
             f = fun(x, *args)
             if nonlinear_constraint_function is not None:
@@ -329,11 +337,10 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
             else:
                 nlconstr = np.zeros(0)
             return f, nlconstr
-        del options['fortran']
-        del options['m_nlcon']
+        options.pop('fortran', None)
         result = cobyla(
             calcfc,
-            len(nlconstr0),
+            m_nlcon,
             x0,
             A_ineq,
             b_ineq,
@@ -341,8 +348,8 @@ def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callbac
             b_eq,
             lb,
             ub,
-            # f0=f0,
-            # nlconstr0=nlconstr0,
+            f0=f0,
+            nlconstr0=nlconstr0,
             callback=callback,
             **options
         )
