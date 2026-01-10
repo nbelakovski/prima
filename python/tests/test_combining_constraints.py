@@ -2,10 +2,8 @@ from prima import minimize as prima_minimize, NonlinearConstraint as prima_NLC, 
 import numpy as np
 from objective import fun
 import pytest
-from contextlib import nullcontext as does_not_raise
 
 
-@pytest.mark.parametrize('backend', ['Fortran', 'Python'])
 def test_providing_linear_and_nonlinear_constraints(backend):
     nlc = prima_NLC(lambda x: x[0]**2, lb=[25], ub=[100])
     lc = prima_LC(np.array([1,1]), lb=10, ub=15)
@@ -17,26 +15,25 @@ def test_providing_linear_and_nonlinear_constraints(backend):
     assert res.method == "cobyla"
 
 
-@pytest.mark.parametrize('backend,expectation', [
-    ('Fortran', does_not_raise()),
-    ('Python', pytest.warns(UserWarning, match="The pure Python implementation only supports COBYLA at this time. The Fortran implementation will be used instead."))
-])
-def test_providing_bounds_and_linear_constraints(backend, expectation):
+def test_providing_bounds_and_linear_constraints(backend):
     lc = prima_LC(np.array([1,1]), lb=10, ub=15)
     bounds = prima_Bounds(1, 1)
     x0 = [0, 0]
-    with expectation:
+    if backend == 'Fortran':
         res = prima_minimize(fun, x0, constraints=lc, bounds=bounds, options={'backend': backend})
+    elif backend == "Python":
+        with pytest.warns(UserWarning, match="The pure Python implementation only supports COBYLA at this time. The Fortran implementation will be used instead."):
+            res = prima_minimize(fun, x0, constraints=lc, bounds=bounds, options={'backend': backend})
     assert np.isclose(res.x[0], 1, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.x[1], 9, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.fun, 41, atol=1e-6, rtol=1e-6)
 
 
-def test_providing_bounds_and_nonlinear_constraints():
+def test_providing_bounds_and_nonlinear_constraints(backend):
     nlc = prima_NLC(lambda x: x[0]**2, lb=[25], ub=[100])
     bounds = prima_Bounds([None, 1], [None, 1])
     x0 = [6, 1]  # Unfortunately the test is very fragile if we do not start near the optimal point
-    res = prima_minimize(fun, x0, constraints=nlc, bounds=bounds)
+    res = prima_minimize(fun, x0, constraints=nlc, bounds=bounds, options={'backend': backend})
     assert np.isclose(res.x[0], 5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.x[1], 1, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.fun, 9, atol=1e-6, rtol=1e-6)
