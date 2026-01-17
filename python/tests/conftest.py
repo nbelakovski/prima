@@ -3,7 +3,7 @@ import pytest
 import sys
 
 @pytest.fixture(params=['Fortran', 'Python'])
-def backend(request):
+def backend_fixture(request):
     # Parametrizing the entire test suite: https://github.com/pytest-dev/pytest/issues/3196
     return request.param
 

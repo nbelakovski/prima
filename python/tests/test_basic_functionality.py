@@ -4,20 +4,20 @@ import pytest
 from objective import fun
 
 
-def test_provide_nonlinear_constraints_alone(backend):
+def test_provide_nonlinear_constraints_alone(backend_fixture):
     nlc = NLC(lambda x: np.array([x[0]**2, x[1]**2]), lb=[25]*2, ub=[100]*2)
     x0 = [0, 0]
-    res = minimize(fun, x0, constraints=nlc, options={'backend': backend})
+    res = minimize(fun, x0, constraints=nlc, options={'backend': backend_fixture})
     assert np.isclose(res.x[0], 5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.x[1], 5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.fun, 1, atol=1e-6, rtol=1e-6)
     assert res.method == "cobyla"
 
 
-def test_provide_nonlinear_constraints_alone_and_select_COBYLA(backend):
+def test_provide_nonlinear_constraints_alone_and_select_COBYLA(backend_fixture):
     nlc = NLC(lambda x: np.array([x[0]**2, x[1]**2]), lb=[25]*2, ub=[100]*2)
     x0 = [0, 0]
-    res = minimize(fun, x0, constraints=nlc, method="cobyla", options={'backend': backend})
+    res = minimize(fun, x0, constraints=nlc, method="cobyla", options={'backend': backend_fixture})
     assert np.isclose(res.x[0], 5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.x[1], 5, atol=1e-6, rtol=1e-6)
     assert np.isclose(res.fun, 1, atol=1e-6, rtol=1e-6)
