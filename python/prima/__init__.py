@@ -87,45 +87,106 @@ def process_constraints(constraints):
 
 
 def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callback=None, options=None):
-    '''
-    Minimize a scalar function of one or more variables using the appropriate method from
-    the PRIMA package. Method selection is as follows:
+    '''Powell Reference Implementation for Modernization and Amelioration
 
-    No constraints: NEWUOA
-    Bounds constraints only: BOBYQA
-    Linear constraints (and optionally bounds constraints): LINCOA
-    Nonlinear constraints (and optionally linear and/or bounds constraints): COBYLA
+    PRIMA is an interface to call Powell's derivatives-free optimization solvers:
+    UOBYQA, NEWUOA, BOBYQA, LINCOA, and COBYLA. They are designed to minimize a
+    scalar function of several variables subject to (possibly) bound
+    constraints, linear constraints, and nonlinear constraints.
 
-    The method may be overridden by specifying the "method" keyword argument. For
-    unconstrained problems there is another algorithm available, UOBYQA, which can only
-    be selected by the user.
+    PRIMA represents a significant effort to modernize and improve the original FORTRAN
+    implementations written by Powell. It is written by Zaikun Zhang. Python bindings
+    and Python implementation of COBYLA contributed by Nickolai Belakovski.
 
-    TODO: Flesh this section out. Perhaps using PDFO as example/inspiration.
+    TODO: Speak with Zaikun re: attribution.
 
+    Parameters
+    ----------
+    fun : callable
+        Objective function to be minimized.
 
-    Options
+            ``fun(x, *args) -> float``
+
+        where ``x`` is an array with shape (n,) and `args` is a tuple.
+    
+    x0 : array_like, shape (n,)
+        Initial guess.
+
+    args : tuple, optional
+        Extra arguments of the objective function. For example,
+
+            ``pdfo(fun, x0, args, ...)``
+
+        is equivalent to
+
+            ``pdfo(lambda x: fun(x, *args), x0, ...)``
+
+    method : {'uobyqa', 'newuoa', 'bobyqa', 'lincoa', 'cobyla'}, optional
+        Name of the Powell method that will be used. By default, 'newuoa'
+        is selected if the problem is unconstrained, 'bobyqa' is selected
+        if the problem is bound-constrained, 'lincoa' is selected if the
+        problem is linearly constrained, and 'cobyla' is selected if the
+        problem is nonlinearly constrained.
+
+    bounds : {`scipy.optimize.Bounds`, array_like, shape (n, 2)}, optional
+        Bound constraints of the problem. It can be one of the cases below.
+
+        #. An instance of `scipy.optimize.Bounds`.
+        #. An array with shape (n, 2). The bound constraints for ``x[i]`` are
+           ``bounds[i, 0] <= x[i] <= bounds[i, 1]``. Set ``bounds[i, 0]`` to
+           :math:`-\infty` if there is no lower bound, and set ``bounds[i, 1]``
+           to :math:`\infty` if there is no upper bound.
+
+    constraints : {dict, `scipy.optimize.LinearConstraint`, `scipy.optimize.NonlinearConstraint`, list, tuple}, optional
+        Constraints of the problem. It can be one of the cases below.
+
+        #. A dictionary with fields:
+
+            type : {'eq', 'ineq'}
+                Whether the constraint is ``fun(x) = 0`` or ``fun(x) >= 0``.
+            fun : callable
+                Constraint function.
+
+        #. An instance of `scipy.optimize.LinearConstraint`.
+        #. An instance of `scipy.optimize.NonlinearConstraint`.
+        #. A list or tuple, each of whose elements are described in 1, 2, and 3.
+
+    options : dict, optional
+        The options passed to the solver. Accepted options are:
+
+            rhobeg : float, optional
+                Reasonable initial changes to the variables.
+            tol : float, optional
+                Final accuracy in the optimization (not precisely guaranteed).
+                This is a lower bound on the size of the trust region.
+            iprint : int, optional
+                Controls the frequency of output:
+                    0. (default) There will be no printing
+                    1. A message will be printed to the screen at the end of iteration, showing
+                    the best vector of variables found and its objective function value
+                    2. in addition to 1, each new value of RHO is printed to the screen,
+                    with the best vector of variables so far and its objective function
+                    value.
+                    3. in addition to 2, each function evaluation with its variables will
+                    be printed to the screen.
+            maxfev : int, optional
+                Maximum number of function evaluations.
+            ctol : float, optional
+                Tolerance (absolute) for constraint violations
+            ftarget : float, optional
+                Stop if the objective function is less than `f_target`.
+
+    Returns
     -------
-    rhobeg : float
-        Reasonable initial changes to the variables.
-    tol : float
-        Final accuracy in the optimization (not precisely guaranteed).
-        This is a lower bound on the size of the trust region.
-    iprint : int
-        Controls the frequency of output:
-            0. (default) There will be no printing
-            1. A message will be printed to the screen at the end of iteration, showing
-               the best vector of variables found and its objective function value
-            2. in addition to 1, each new value of RHO is printed to the screen,
-               with the best vector of variables so far and its objective function
-               value.
-            3. in addition to 2, each function evaluation with its variables will
-               be printed to the screen.
-    maxfev : int
-        Maximum number of function evaluations.
-    ctol : float
-        Tolerance (absolute) for constraint violations
-    ftarget : float
-        Stop if the objective function is less than `f_target`.
+    TODO:
+
+    References
+    ----------
+    TODO:
+
+    Examples
+    ----------
+    TODO:
     '''
 
     linear_constraint, nonlinear_constraint_function = process_constraints(constraints)
