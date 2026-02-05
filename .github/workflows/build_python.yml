@@ -90,12 +90,20 @@ jobs:
           git clone https://github.com/ralna/SIFDecode ./sifdecode
           git clone https://github.com/ralna/CUTEst ./cutest
           git clone https://bitbucket.org/optrove/sif ./mastsif
+          echo "MASTSIF=$(pwd)/mastsif/" >> $GITHUB_ENV
           cd sifdecode
-          meson setup builddir
+          meson setup --prefix $(pwd)/install builddir
           meson compile -C builddir
+          meson install -C builddir
+          echo "SIFDECODE=$(pwd)/install/" >> $GITHUB_ENV
           cd ../cutest
-          meson setup builddir
+          meson setup --prefix $(pwd)/install builddir
           meson compile -C builddir
+          meson install -C builddir
+          echo "CUTEST=$(pwd)/install/" >> $GITHUB_ENV
+          cd ..
+          mkdir cache
+          echo "PYCUTEST_CACHE=$(pwd)/cache/"
 
       - name: Build wheels in debug for testing
         uses: pypa/cibuildwheel@v3.3.1
@@ -104,10 +112,10 @@ jobs:
         with:
           output-dir: wheelhouse_debug
         env:
-          CUTEST: constr_unconstr_test_env/cutest/builddir
-          MASTSIF: constr_unconstr_test_env/mastsif
-          PYCUTEST_CACHE: /tmp
-          SIFDECODE: constr_unconstr_test_env/sifdecode/builddir
+          # CUTEST: constr_unconstr_test_env/cutest/builddir
+          # MASTSIF: constr_unconstr_test_env/mastsif
+          # PYCUTEST_CACHE: /tmp
+          # SIFDECODE: constr_unconstr_test_env/sifdecode/builddir
           # Env variables for scikit-build-core
           SKBUILD_CMAKE_BUILD_TYPE: Debug
 
