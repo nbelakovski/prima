@@ -87,7 +87,7 @@ def process_constraints(constraints):
 
 
 def minimize(fun, x0, args=(), method=None, bounds=None, constraints=(), callback=None, options=None):
-    '''Powell Reference Implementation for Modernization and Amelioration
+    r'''Powell Reference Implementation for Modernization and Amelioration
 
     PRIMA is an interface to call Powell's derivatives-free optimization solvers:
     UOBYQA, NEWUOA, BOBYQA, LINCOA, and COBYLA. They are designed to minimize a

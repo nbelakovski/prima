@@ -1,6 +1,8 @@
 import pytest
 # This exists mainly for those CI tests in which cutest/pycutest are not installed.
-pytest.importorskip("pycutest", exc_type=ImportError)
+import os
+pytestmark = pytest.mark.skipif(os.getenv('NOPYCUTEST') == '1',
+                                reason="CUTEST tests have been explicitly disabled")
 
 from .load_cutest_problem import load_cutest_problem
 import prima

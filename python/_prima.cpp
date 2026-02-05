@@ -140,7 +140,7 @@ PYBIND11_MODULE(_prima, m) {
       } else if (py_x0.ndim() == 1) {
         x0_shape = {py_x0.shape(0)};
       } else {
-        throw std::invalid_argument("x0 must be a scalar or a 1D array");
+        throw std::invalid_argument("x0 must be a scalar or a 1D array.");
       }
 
       // Initialize the problem

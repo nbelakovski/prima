@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-latest, windows-2022, windows-latest, macos-15-intel, macos-latest]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2022, windows-2025, macos-15-intel, macos-15]
 
     steps:
       - name: Clone Repository (Latest)
@@ -80,8 +80,42 @@ jobs:
               xcodebuild -version
           fi
 
-      - name: Build wheels
+      - name: Install pycutest
+        shell: bash
+        # if: ${{ runner.os == 'Linux' }}
+        run: |
+          pip install meson
+          mkdir constr_unconstr_test_env
+          cd constr_unconstr_test_env
+          git clone https://github.com/ralna/SIFDecode ./sifdecode
+          git clone https://github.com/ralna/CUTEst ./cutest
+          git clone https://bitbucket.org/optrove/sif ./mastsif
+          cd sifdecode
+          meson setup builddir
+          meson compile -C builddir
+          cd ../cutest
+          meson setup builddir
+          meson compile -C builddir
+
+      - name: Build wheels in debug for testing
         uses: pypa/cibuildwheel@v3.2.0
+        # Only do it on Linux because pycutest is hard to install on Windows.
+        # if: ${{ runner.os == 'Linux' }}
+        with:
+          output-dir: wheelhouse_debug
+        env:
+          CUTEST: constr_unconstr_test_env/cutest/builddir
+          MASTSIF: constr_unconstr_test_env/mastsif
+          PYCUTEST_CACHE: /tmp
+          SIFDECODE: constr_unconstr_test_env/sifdecode/builddir
+          # Env variables for scikit-build-core
+          SKBUILD_CMAKE_BUILD_TYPE: Debug
+
+      - name: Build wheels in release mode
+        uses: pypa/cibuildwheel@v3.2.0
+        env:
+          SKBUILD_CMAKE_BUILD_TYPE: Release
+          NOPYCUTEST: 1
 
       - uses: actions/upload-artifact@v4
         with:
