@@ -47,7 +47,7 @@ before-test = [
   "pip install --only-binary :all: scipy pdfo || true",
   # There seems to be an issue with pycutest cache after the first build, so let's just clear the cache
   # Unfortunately there doesn't appear to be a way to just disable the cache, and /dev/null doesn't work either.
-  "rm -rf ${PYCUTEST_CACHE:-/tmp}/*"
+  "rm -rf ${PYCUTEST_CACHE:-/dev/null}/*"
 ]
 skip = [
   # On windows we get a complaint from CMake:
