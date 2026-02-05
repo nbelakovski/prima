@@ -82,7 +82,8 @@ jobs:
 
       - name: Install pycutest
         shell: bash
-        # if: ${{ runner.os == 'Linux' }}
+        # pycutest does not support windows
+        if: ${{ runner.os != 'Windows' }}
         run: |
           pip install meson
           mkdir constr_unconstr_test_env
@@ -103,20 +104,16 @@ jobs:
           echo "CUTEST=$(pwd)/install/" >> $GITHUB_ENV
           cd ..
           mkdir cache
-          echo "PYCUTEST_CACHE=$(pwd)/cache/"
+          echo "PYCUTEST_CACHE=$(pwd)/cache/" >> $GITHUB_ENV
+
 
       - name: Build wheels in debug for testing
         uses: pypa/cibuildwheel@v3.3.1
-        # Only do it on Linux because pycutest is hard to install on Windows.
-        # if: ${{ runner.os == 'Linux' }}
+        # pycutest does not support windows
+        if: ${{ runner.os != 'Windows' }}
         with:
           output-dir: wheelhouse_debug
         env:
-          # CUTEST: constr_unconstr_test_env/cutest/builddir
-          # MASTSIF: constr_unconstr_test_env/mastsif
-          # PYCUTEST_CACHE: /tmp
-          # SIFDECODE: constr_unconstr_test_env/sifdecode/builddir
-          # Env variables for scikit-build-core
           SKBUILD_CMAKE_BUILD_TYPE: Debug
 
       - name: Build wheels in release mode
