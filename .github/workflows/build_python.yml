@@ -98,7 +98,7 @@ jobs:
           meson compile -C builddir
 
       - name: Build wheels in debug for testing
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.3.1
         # Only do it on Linux because pycutest is hard to install on Windows.
         # if: ${{ runner.os == 'Linux' }}
         with:
@@ -112,7 +112,7 @@ jobs:
           SKBUILD_CMAKE_BUILD_TYPE: Debug
 
       - name: Build wheels in release mode
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.3.1
         env:
           SKBUILD_CMAKE_BUILD_TYPE: Release
           NOPYCUTEST: 1
