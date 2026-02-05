@@ -38,12 +38,17 @@ coverage = {shell = "coverage run --branch --source=prima,$(git rev-parse --show
 build-verbosity = 3
 test-command = "coverage run --branch --source=prima,{project} -m pytest -s {project}/python/tests && coverage html -d {project}/prima_htmlcov"
 test-requires = ["pytest", "coverage", "packaging", "pycutest"]
-# We need scipy and pdfo (which depends on scipy) for compatibility tests.
-# scipy is not available on all platforms we support, so we try to install it
-# if posssible, otherwise we skip it. The test will skip itself if it cannot
-# import scipy. "--only-binary" ensure we do not try to build scipy from
-# source (which requires special setup we have no intention of doing).
-before-test = "pip install --only-binary :all: scipy pdfo || true"
+before-test = [
+  # We need scipy and pdfo (which depends on scipy) for compatibility tests.
+  # scipy is not available on all platforms we support, so we try to install it
+  # if posssible, otherwise we skip it. The test will skip itself if it cannot
+  # import scipy. "--only-binary" ensure we do not try to build scipy from
+  # source (which requires special setup we have no intention of doing).
+  "pip install --only-binary :all: scipy pdfo || true",
+  # There seems to be an issue with pycutest cache after the first build, so let's just clear the cache
+  # Unfortunately there doesn't appear to be a way to just disable the cache, and /dev/null doesn't work either.
+  "rm -rf ${PYCUTEST_CACHE:-/tmp}/*"
+]
 skip = [
   # On windows we get a complaint from CMake:
   # "CMake Error at python/pybind11/tools/FindPythonLibsNew.cmake:191 (message):
