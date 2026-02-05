@@ -52,8 +52,6 @@ skip = [
   # I do not see a way to install a 32-bit compiler with the setup-fortran action,
   # so we will just build 64-bit wheels on windows.
   "*-win32", 
-  # Skip PyPy
-  "pp*",
   # Disable musllinux for the moment. It successfully built but there was an error when testing.
   # The error might be resolved by gfortran v14 -ftrampoline-impl=heap
   "*musllinux*",
