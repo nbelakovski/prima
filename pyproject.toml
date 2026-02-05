@@ -37,7 +37,7 @@ coverage = {shell = "coverage run --branch --source=prima,$(git rev-parse --show
 [tool.cibuildwheel]
 build-verbosity = 3
 test-command = "coverage run --branch --source=prima,{project} -m pytest -s {project}/python/tests && coverage html -d {project}/prima_htmlcov"
-test-requires = ["pytest", "coverage", "packaging"]
+test-requires = ["pytest", "coverage", "packaging", "pycutest"]
 # We need scipy and pdfo (which depends on scipy) for compatibility tests.
 # scipy is not available on all platforms we support, so we try to install it
 # if posssible, otherwise we skip it. The test will skip itself if it cannot
