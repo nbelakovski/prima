@@ -22,8 +22,8 @@ def test_callback_no_terminate():
     def callback(x, *args):
         pass
     result = minimize(obj, obj.x0, method='cobyla', callback=callback)
-    # I'm not sure why but ubuntu finishes the problem with 2 extra function evaluations :shrug:
-    assert result.nfev == (56 if platform.system() == 'Linux' else 54)
+    # Different platforms finish with different nfev due to different optimizations
+    assert result.nfev == (56 if (platform.machine().lower() in ["x86_64", "amd64", "i386"]) else 54)
     assert np.allclose(result.x, obj.optimal, atol=1e-3)
     assert result.status == SMALL_TR_RADIUS
 
