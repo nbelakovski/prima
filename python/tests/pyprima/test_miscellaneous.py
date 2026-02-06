@@ -1,6 +1,7 @@
 from prima import minimize, NonlinearConstraint
 from prima.pyprima.common.infos import CALLBACK_TERMINATE, SMALL_TR_RADIUS
 import numpy as np
+import os
 import pytest
 import platform
 
@@ -23,7 +24,10 @@ def test_callback_no_terminate():
         pass
     result = minimize(obj, obj.x0, method='cobyla', callback=callback)
     # Different platforms finish with different nfev due to different optimizations
-    assert result.nfev == (56 if (platform.machine().lower() in ["x86_64", "amd64", "i386"]) else 54)
+    assert result.nfev == (56 if (
+        (platform.machine().lower() in ["x86_64", "amd64", "i386"]) or
+        (os.getenv('SKBUILD_CMAKE_BUILD_TYPE') == "Debug")
+        ) else 54)
     assert np.allclose(result.x, obj.optimal, atol=1e-3)
     assert result.status == SMALL_TR_RADIUS
 
