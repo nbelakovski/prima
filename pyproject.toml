@@ -32,12 +32,12 @@ write_to = "_version.txt"
 cache-keys = [{file = "fortran/**"}, {file="c/**"}, {file="python/_prima.cpp"}, {file="pyproject.toml"}, {file="**/CMakeLists.txt"}]
 
 [tool.poe.tasks]
-coverage = {shell = "coverage run --branch --source=prima,$(git rev-parse --show-toplevel) -m pytest -s python/tests && coverage html"}
+coverage = {shell = "coverage run --branch --source=prima,$(git rev-parse --show-toplevel) -m pytest -s python/tests && coverage html -d prima_htmlcov"}
 
 [tool.cibuildwheel]
 build-verbosity = 3
-test-command = "coverage run --branch --source=prima,{project} -m pytest -s {project}/python/tests && coverage html -d {project}/prima_htmlcov"
-test-requires = ["pytest", "coverage", "packaging", "pycutest"]
+test-command = "python -m pytest -s {project}/python/tests"
+test-requires = ["pytest", "packaging"]
 before-test = [
   # We need scipy and pdfo (which depends on scipy) for compatibility tests.
   # scipy is not available on all platforms we support, so we try to install it
@@ -45,9 +45,6 @@ before-test = [
   # import scipy. "--only-binary" ensure we do not try to build scipy from
   # source (which requires special setup we have no intention of doing).
   "pip install --only-binary :all: scipy pdfo || true",
-  # There seems to be an issue with pycutest cache after the first build, so let's just clear the cache
-  # Unfortunately there doesn't appear to be a way to just disable the cache, and /dev/null doesn't work either.
-  "rm -rf ${PYCUTEST_CACHE:-/dev/null}/*"
 ]
 skip = [
   # On windows we get a complaint from CMake:

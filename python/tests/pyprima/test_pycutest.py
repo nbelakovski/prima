@@ -1,8 +1,13 @@
 import pytest
 # This exists mainly for those CI tests in which cutest/pycutest are not installed.
 import os
-pytestmark = pytest.mark.skipif(os.getenv('NOPYCUTEST') == '1',
-                                reason="CUTEST tests have been explicitly disabled")
+import sys
+pytestmark = [
+    pytest.mark.skipif(os.getenv('SKBUILD_CMAKE_BUILD_TYPE') != "Debug",
+        reason="CUTEST tests must be run against Fortran compiled in Debug mode"),
+    pytest.mark.skipif(sys.platform not in ['linux', 'darwin'],
+        reason="pycutest is not supported on Windows")
+]
 
 from .load_cutest_problem import load_cutest_problem
 import prima

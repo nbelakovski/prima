@@ -1,12 +1,9 @@
-name: Build Python wheels
+name: Python run all tests including pycutest
 
 on:
   # Trigger the workflow on push or pull request
   push:
   pull_request:  # DANGEROUS! MUST be disabled for self-hosted runners!
-  # Trigger the workflow by cron. The default time zone of GitHub Actions is UTC.
-  #schedule:
-  #  - cron: '0 16 * * *'
   # Trigger the workflow manually
   workflow_dispatch:
     inputs:
@@ -19,7 +16,7 @@ run-name: ${{ github.event_name == 'workflow_dispatch' && format('Manual run {0}
 
 
 jobs:
-  build_wheels:
+  run_all_tests:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -86,8 +83,8 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         run: |
           pip install meson
-          mkdir constr_unconstr_test_env
-          cd constr_unconstr_test_env
+          mkdir /tmp/constr_unconstr_test_env
+          cd /tmp/constr_unconstr_test_env
           git clone https://github.com/ralna/SIFDecode ./sifdecode
           git clone https://github.com/ralna/CUTEst ./cutest
           git clone https://bitbucket.org/optrove/sif ./mastsif
@@ -106,43 +103,20 @@ jobs:
           mkdir cache
           echo "PYCUTEST_CACHE=$(pwd)/cache/" >> $GITHUB_ENV
 
-
-      - name: Build wheels in debug for testing
-        uses: pypa/cibuildwheel@v3.3.1
-        # pycutest does not support windows
-        if: ${{ runner.os != 'Windows' }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          output-dir: wheelhouse_debug
+          version: "0.10.0"
+
+      - name: Build wheel, run tests, and capture coverage
+        shell: bash
+        run: |
+          uv run poe coverage
         env:
           SKBUILD_CMAKE_BUILD_TYPE: Debug
 
-      - name: Build wheels in release mode
-        uses: pypa/cibuildwheel@v3.3.1
-        env:
-          SKBUILD_CMAKE_BUILD_TYPE: Release
-          NOPYCUTEST: 1
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
 
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./prima_htmlcov
-
-
-  build_sdist:
-    name: Build source distribution
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5.0.0
-
-      - name: Build sdist
-        run: pipx run build --sdist
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cibw-sdist
-          path: dist/*.tar.gz
